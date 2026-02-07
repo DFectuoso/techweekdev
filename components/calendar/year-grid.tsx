@@ -20,7 +20,7 @@ import {
 import { EventDensityIndicator } from "./event-density-indicator";
 
 const CELL_WIDTH = 58;
-const CELL_HEIGHT = 48;
+const CELL_HEIGHT = 64;
 const BAR_HEIGHT = 16;
 const BAR_GAP = 2;
 const MAX_VISIBLE_LANES = 3;
@@ -169,19 +169,9 @@ export function YearGrid({
           {group.rows.map((rowDates, rowIndex) => {
             const barInfo = group.segmentsByRow.get(rowIndex);
             const visibleBars = barInfo?.visible ?? [];
-            const overflow = barInfo?.overflow ?? 0;
-            const maxLane =
-              visibleBars.length > 0
-                ? Math.max(...visibleBars.map((s) => s.lane))
-                : -1;
-            const barAreaHeight =
-              visibleBars.length > 0
-                ? (maxLane + 1) * (BAR_HEIGHT + BAR_GAP) +
-                  (overflow > 0 ? 14 : 0)
-                : 0;
 
             return (
-              <div key={rowIndex}>
+              <div key={rowIndex} className="relative">
                 {/* Day cells */}
                 <div className="flex">
                   {rowDates.map((date) => {
@@ -226,8 +216,8 @@ export function YearGrid({
                             {date.getDate()}
                           </span>
                         </div>
-                        {/* Density dots at bottom center */}
-                        <div className="flex-1 flex items-end justify-center pb-0.5">
+                        {/* Event count in center of cell */}
+                        <div className="flex-1 flex items-center justify-center">
                           <EventDensityIndicator count={count} />
                         </div>
                       </div>
@@ -235,54 +225,56 @@ export function YearGrid({
                   })}
                 </div>
 
-                {/* Bar area — only if this row has bars */}
-                {visibleBars.length > 0 && (
-                  <div className="relative" style={{ height: barAreaHeight }}>
-                    {visibleBars.map((seg, si) => {
-                      const left = (seg.startCol / cellsPerRow) * 100;
-                      const width =
-                        ((seg.endCol - seg.startCol + 1) / cellsPerRow) * 100;
-                      const top = seg.lane * (BAR_HEIGHT + BAR_GAP);
+                {/* Featured bars overlaid at bottom of cells */}
+                {visibleBars.map((seg, si) => {
+                  const left = (seg.startCol / cellsPerRow) * 100;
+                  const width =
+                    ((seg.endCol - seg.startCol + 1) / cellsPerRow) * 100;
+                  const bottom = seg.lane * (BAR_HEIGHT + BAR_GAP);
+                  const barColor = getFeaturedBarColor(seg.eventIndex);
 
-                      const roundedLeft = seg.isFirst
-                        ? "rounded-l-md"
-                        : "rounded-l-none";
-                      const roundedRight = seg.isLast
-                        ? "rounded-r-md"
-                        : "rounded-r-none";
+                  const roundedLeft = seg.isFirst
+                    ? "rounded-l-md"
+                    : "rounded-l-none";
+                  const roundedRight = seg.isLast
+                    ? "rounded-r-md"
+                    : "rounded-r-none";
 
-                      return (
-                        <div
-                          key={`${seg.event.id}-${group.year}-${rowIndex}-${si}`}
-                          className={`absolute flex items-center overflow-hidden ${getFeaturedBarColor(seg.eventIndex)} ${roundedLeft} ${roundedRight}`}
-                          style={{
-                            left: `${left}%`,
-                            width: `${width}%`,
-                            top: `${top}px`,
-                            height: `${BAR_HEIGHT}px`,
-                          }}
-                        >
-                          {seg.isFirst && (
-                            <span className="truncate px-1.5 text-[10px] italic text-foreground/70">
-                              {seg.event.name}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {overflow > 0 && (
-                      <div
-                        className="absolute text-[9px] text-muted-foreground"
-                        style={{
-                          left: 0,
-                          top: `${MAX_VISIBLE_LANES * (BAR_HEIGHT + BAR_GAP)}px`,
-                        }}
-                      >
-                        +{overflow} more
-                      </div>
-                    )}
-                  </div>
-                )}
+                  const barClass = `group absolute z-10 flex items-center overflow-hidden hover:overflow-visible hover:z-20 ${barColor} ${roundedLeft} ${roundedRight}`;
+                  const barStyle = {
+                    left: `${left}%`,
+                    width: `${width}%`,
+                    bottom: `${bottom}px`,
+                    height: `${BAR_HEIGHT}px`,
+                  };
+                  const label = seg.isFirst ? (
+                    <span className={`whitespace-nowrap px-1.5 text-[10px] italic text-foreground/70 ${barColor} group-hover:pr-2 group-hover:rounded-r-md`}>
+                      {seg.event.name}
+                    </span>
+                  ) : null;
+
+                  return seg.event.website ? (
+                    <a
+                      key={`${seg.event.id}-${group.year}-${rowIndex}-${si}`}
+                      href={seg.event.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className={`${barClass} hover:opacity-90 transition-opacity`}
+                      style={barStyle}
+                    >
+                      {label}
+                    </a>
+                  ) : (
+                    <div
+                      key={`${seg.event.id}-${group.year}-${rowIndex}-${si}`}
+                      className={barClass}
+                      style={barStyle}
+                    >
+                      {label}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { Event } from "@/lib/db/schema";
 import {
   getDayName,
@@ -10,7 +9,6 @@ import {
 } from "@/lib/utils/date";
 import { getFeaturedBarColor } from "@/lib/utils/event-colors";
 import { WeekEventCard } from "./week-event-card";
-import { EventDetailDrawer } from "./event-detail-drawer";
 
 interface WeekGridProps {
   weekStart: Date;
@@ -19,8 +17,6 @@ interface WeekGridProps {
 }
 
 export function WeekGrid({ weekStart, events, featuredEvents }: WeekGridProps) {
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-
   const today = new Date();
 
   // Generate 7 days starting from weekStart (Monday)
@@ -103,114 +99,123 @@ export function WeekGrid({ weekStart, events, featuredEvents }: WeekGridProps) {
       : 0;
 
   return (
-    <>
-      <div className="overflow-x-auto">
-        <div className="min-w-[700px]">
-          {/* Featured bars area */}
-          {featuredBars.length > 0 && (
-            <div
-              className="relative mb-2"
-              style={{ height: `${featuredAreaHeight}px` }}
-            >
-              {featuredBars.map((bar) => {
-                const lane = (bar as typeof bar & { lane: number }).lane;
-                if (lane >= 3) return null;
+    <div className="overflow-x-auto">
+      <div className="min-w-[700px]">
+        {/* Featured bars area */}
+        {featuredBars.length > 0 && (
+          <div
+            className="relative mb-2"
+            style={{ height: `${featuredAreaHeight}px` }}
+          >
+            {featuredBars.map((bar) => {
+              const lane = (bar as typeof bar & { lane: number }).lane;
+              if (lane >= 3) return null;
 
-                const leftPct = (bar.startCol / 7) * 100;
-                const widthPct = ((bar.endCol - bar.startCol + 1) / 7) * 100;
-                const top = lane * (barHeight + barGap);
+              const leftPct = (bar.startCol / 7) * 100;
+              const widthPct = ((bar.endCol - bar.startCol + 1) / 7) * 100;
+              const top = lane * (barHeight + barGap);
 
-                return (
-                  <button
-                    key={bar.event.id}
-                    onClick={() => setSelectedEvent(bar.event)}
-                    className={`absolute flex items-center rounded-md overflow-hidden ${getFeaturedBarColor(bar.idx)} hover:opacity-80 transition-opacity`}
-                    style={{
-                      left: `${leftPct}%`,
-                      width: `${widthPct}%`,
-                      top: `${top}px`,
-                      height: `${barHeight}px`,
-                    }}
-                  >
-                    <span className="truncate px-2 text-xs italic font-medium text-foreground/70">
-                      {bar.event.name}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Column headers */}
-          <div className="grid grid-cols-7 border-b border-border">
-            {days.map((day, i) => {
-              const isToday = isSameDay(day, today);
-              return (
+              return bar.event.website ? (
+                <a
+                  key={bar.event.id}
+                  href={bar.event.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`absolute flex items-center rounded-md overflow-hidden ${getFeaturedBarColor(bar.idx)} hover:opacity-80 transition-opacity`}
+                  style={{
+                    left: `${leftPct}%`,
+                    width: `${widthPct}%`,
+                    top: `${top}px`,
+                    height: `${barHeight}px`,
+                  }}
+                >
+                  <span className="truncate px-2 text-xs italic font-medium text-foreground/70">
+                    {bar.event.name}
+                  </span>
+                </a>
+              ) : (
                 <div
-                  key={i}
-                  className={`px-2 py-2 text-center ${
-                    isToday ? "bg-primary/10" : ""
+                  key={bar.event.id}
+                  className={`absolute flex items-center rounded-md overflow-hidden ${getFeaturedBarColor(bar.idx)}`}
+                  style={{
+                    left: `${leftPct}%`,
+                    width: `${widthPct}%`,
+                    top: `${top}px`,
+                    height: `${barHeight}px`,
+                  }}
+                >
+                  <span className="truncate px-2 text-xs italic font-medium text-foreground/70">
+                    {bar.event.name}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Column headers */}
+        <div className="grid grid-cols-7 border-b border-border">
+          {days.map((day, i) => {
+            const isToday = isSameDay(day, today);
+            return (
+              <div
+                key={i}
+                className={`px-2 py-2 text-center ${
+                  isToday ? "bg-primary/10" : ""
+                }`}
+              >
+                <p className="text-xs text-muted-foreground">
+                  {getDayName(day.getDay())}
+                </p>
+                <p
+                  className={`text-sm font-semibold ${
+                    isToday
+                      ? "inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                      : ""
                   }`}
                 >
-                  <p className="text-xs text-muted-foreground">
-                    {getDayName(day.getDay())}
-                  </p>
-                  <p
-                    className={`text-sm font-semibold ${
-                      isToday
-                        ? "inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground"
-                        : ""
-                    }`}
-                  >
-                    {day.getDate()}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {getShortMonthName(day.getMonth())}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+                  {day.getDate()}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {getShortMonthName(day.getMonth())}
+                </p>
+              </div>
+            );
+          })}
+        </div>
 
-          {/* Day columns with events */}
-          <div className="grid grid-cols-7 min-h-[400px]">
-            {days.map((day, i) => {
-              const key = day.toDateString();
-              const dayEvents = eventsByDay[key] || [];
-              const isToday = isSameDay(day, today);
-              const isPast = isDateInPast(day);
+        {/* Day columns with events */}
+        <div className="grid grid-cols-7 min-h-[400px]">
+          {days.map((day, i) => {
+            const key = day.toDateString();
+            const dayEvents = eventsByDay[key] || [];
+            const isToday = isSameDay(day, today);
+            const isPast = isDateInPast(day);
 
-              return (
-                <div
-                  key={i}
-                  className={`border-r border-border last:border-r-0 p-1.5 space-y-1.5 ${
-                    isToday ? "bg-primary/5" : ""
-                  } ${isPast && !isToday ? "opacity-50" : ""}`}
-                >
-                  {dayEvents.length > 0 ? (
-                    dayEvents.map((event) => (
-                      <WeekEventCard
-                        key={event.id}
-                        event={event}
-                        onClick={() => setSelectedEvent(event)}
-                      />
-                    ))
-                  ) : (
-                    <p className="py-4 text-center text-xs text-muted-foreground italic">
-                      No events
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+            return (
+              <div
+                key={i}
+                className={`border-r border-border last:border-r-0 p-1.5 space-y-1.5 ${
+                  isToday ? "bg-primary/5" : ""
+                } ${isPast && !isToday ? "opacity-50" : ""}`}
+              >
+                {dayEvents.length > 0 ? (
+                  dayEvents.map((event) => (
+                    <WeekEventCard
+                      key={event.id}
+                      event={event}
+                    />
+                  ))
+                ) : (
+                  <p className="py-4 text-center text-xs text-muted-foreground italic">
+                    No events
+                  </p>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
-
-      <EventDetailDrawer
-        event={selectedEvent}
-        onClose={() => setSelectedEvent(null)}
-      />
-    </>
+    </div>
   );
 }

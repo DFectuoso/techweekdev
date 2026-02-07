@@ -16,12 +16,14 @@
     "@auth/drizzle-adapter": "^1.11.1",
     "@libsql/client": "^0.17.0",
     "@mendable/firecrawl-js": "^4.12.0",
+    "@react-email/components": "^1.0.7",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.1",
     "next": "16.1.6",
     "next-auth": "5.0.0-beta.30",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "resend": "^6.9.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

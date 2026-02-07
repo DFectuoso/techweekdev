@@ -5,10 +5,9 @@ import { typeColors } from "@/lib/utils/event-colors";
 
 interface WeekEventCardProps {
   event: Event;
-  onClick: () => void;
 }
 
-export function WeekEventCard({ event, onClick }: WeekEventCardProps) {
+export function WeekEventCard({ event }: WeekEventCardProps) {
   const start = new Date(event.startDate);
   const hours = start.getHours();
   const minutes = start.getMinutes();
@@ -16,15 +15,14 @@ export function WeekEventCard({ event, onClick }: WeekEventCardProps) {
   const h12 = hours % 12 || 12;
   const timeStr = `${h12}:${String(minutes).padStart(2, "0")} ${ampm}`;
 
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left rounded-lg border p-3 transition-colors hover:bg-accent/50 ${
-        event.isFeatured
-          ? "border-primary/50 bg-primary/5"
-          : "border-border bg-card"
-      }`}
-    >
+  const className = `block w-full text-left rounded-lg border p-3 transition-colors hover:bg-accent/50 ${
+    event.isFeatured
+      ? "border-primary/50 bg-primary/5"
+      : "border-border bg-card"
+  }`;
+
+  const content = (
+    <>
       <h4 className="text-sm font-semibold line-clamp-2">{event.name}</h4>
       <p className="mt-0.5 text-xs text-muted-foreground">{timeStr}</p>
       <div className="mt-1.5 flex items-center gap-1.5">
@@ -43,6 +41,21 @@ export function WeekEventCard({ event, onClick }: WeekEventCardProps) {
           </span>
         )}
       </div>
-    </button>
+    </>
   );
+
+  if (event.website) {
+    return (
+      <a
+        href={event.website}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={className}
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return <div className={className}>{content}</div>;
 }
