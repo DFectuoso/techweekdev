@@ -28,6 +28,16 @@ function confidenceColor(c: number): string {
   return "text-red-600";
 }
 
+function truncateUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const display = u.hostname + u.pathname.replace(/\/$/, "");
+    return display.length > 30 ? display.slice(0, 30) + "…" : display;
+  } catch {
+    return url.slice(0, 30);
+  }
+}
+
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "—";
   // Parse naive datetime string directly to avoid timezone shift
@@ -173,6 +183,7 @@ export function ImportReviewList({
                 />
               </th>
               <th className="p-3 text-left">Name</th>
+              <th className="p-3 text-left">URL</th>
               <th className="p-3 text-left">Date</th>
               <th className="p-3 text-left">Type</th>
               <th className="p-3 text-left">Price</th>
@@ -197,6 +208,20 @@ export function ImportReviewList({
                     />
                   </td>
                   <td className="p-3 font-medium">{evt.name || "Untitled"}</td>
+                  <td className="p-3 text-muted-foreground">
+                    {evt.website ? (
+                      <a
+                        href={evt.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {truncateUrl(evt.website)}
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td className="p-3 text-muted-foreground">
                     {formatDate(evt.startDate)}
                   </td>

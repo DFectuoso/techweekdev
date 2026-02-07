@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { scrapeUrl, scrapePricingPages } from "@/lib/firecrawl";
-import { extractEvents } from "@/lib/ai/extract-events";
+import { extractEvents, enrichEventsFromDetailPages } from "@/lib/ai/extract-events";
+import { isLumaUrl, fetchLumaEvents } from "@/lib/luma";
 import type { ImportResponse } from "@/types/import";
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -26,6 +27,19 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Fast path: Luma URLs have structured data we can parse directly
+    if (isLumaUrl(url)) {
+      const lumaResult = await fetchLumaEvents(url);
+      if (lumaResult) {
+        return NextResponse.json({
+          events: lumaResult.events,
+          sourceUrl: url,
+          pageType: lumaResult.pageType,
+        });
+      }
+      // Fall through to generic scrape+AI if Luma parsing failed
+    }
+
     // 1. Scrape the main URL
     const scrapeResult = await scrapeUrl(url);
 
@@ -36,8 +50,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. First-pass extraction
-    let result = await extractEvents(scrapeResult.markdown, undefined, url);
+    // 2. First-pass extraction (pass links for URL matching)
+    let result = await extractEvents(
+      scrapeResult.markdown,
+      undefined,
+      url,
+      scrapeResult.links
+    );
 
     // 3. If single event with no price, try scraping pricing subpages
     if (
@@ -54,9 +73,18 @@ export async function POST(request: Request) {
         result = await extractEvents(
           scrapeResult.markdown,
           pricingMarkdown,
-          url
+          url,
+          scrapeResult.links
         );
       }
+    }
+
+    // 4. If listing page, enrich events missing dates by scraping detail pages
+    if (result.pageType === "listing" && result.events.length > 0) {
+      result.events = await enrichEventsFromDetailPages(
+        result.events,
+        url
+      );
     }
 
     const response: ImportResponse = {

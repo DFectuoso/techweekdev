@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { EVENT_TYPES, REGIONS } from "@/lib/db/schema";
 import type { EventType, Region } from "@/lib/db/schema";
 import type { ExtractedEvent } from "@/types/import";
+import { scrapeUrl } from "@/lib/firecrawl";
 
 let _client: Anthropic | null = null;
 
@@ -12,7 +13,11 @@ function getClient(): Anthropic {
   return _client;
 }
 
-const SYSTEM_PROMPT = `You are a data extraction assistant. Your job is to extract tech event information from web page content and return structured JSON.
+function buildSystemPrompt(): string {
+  const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+  return `You are a data extraction assistant. Your job is to extract tech event information from web page content and return structured JSON.
+
+Today's date is ${today}.
 
 INSTRUCTIONS:
 1. Analyze the provided markdown content from a web page.
@@ -44,6 +49,7 @@ Return ONLY valid JSON (no markdown, no code fences) in this exact shape:
 
 RULES:
 - Dates must be in YYYY-MM-DDTHH:MM:SS format WITHOUT a timezone suffix (no "Z"). All times are San Francisco local time (America/Los_Angeles). If only a date is given without time, use T00:00:00.
+- Use today's date (${today}) to resolve relative dates like "Tomorrow", "Next Tuesday", "This Saturday", etc.
 - If the year is missing from a date, assume the current year (${new Date().getFullYear()}).
 - Price should be a human-readable string: "Free", "$50", "$499-$1,299", "From $99", "Invite Only", etc. Set null if unknown.
 - eventType MUST be one of: ${EVENT_TYPES.join(", ")}. Set null if unsure.
@@ -53,7 +59,9 @@ RULES:
 - For listing pages, extract as many events as you can find.
 - For single event pages, extract just that one event.
 - For non-event pages, return an empty events array.
-- If pricing information is provided in a separate section, use it to fill in prices.`;
+- If pricing information is provided in a separate section, use it to fill in prices.
+- For the "website" field: use the individual event page URL (not the listing page URL). Match event names to URLs from the provided links list when available. Set null if no individual event URL can be determined.`;
+}
 
 const MAX_INPUT_CHARS = 150_000;
 
@@ -65,11 +73,16 @@ interface ExtractionResult {
 export async function extractEvents(
   mainMarkdown: string,
   pricingMarkdown?: string,
-  sourceUrl?: string
+  sourceUrl?: string,
+  links?: string[]
 ): Promise<ExtractionResult> {
   let content = mainMarkdown;
   if (pricingMarkdown) {
     content += "\n\n=== PRICING INFORMATION ===\n\n" + pricingMarkdown;
+  }
+
+  if (links && links.length > 0) {
+    content += "\n\n=== LINKS FOUND ON PAGE ===\n\n" + links.join("\n");
   }
 
   // Truncate to stay within limits
@@ -77,14 +90,16 @@ export async function extractEvents(
     content = content.slice(0, MAX_INPUT_CHARS);
   }
 
+  const sourceInfo = sourceUrl ? `\nSource URL: ${sourceUrl}` : "";
+
   const message = await getClient().messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 4096,
-    system: SYSTEM_PROMPT,
+    system: buildSystemPrompt(),
     messages: [
       {
         role: "user",
-        content: `Extract event information from this web page content:\n\n${content}`,
+        content: `Extract event information from this web page content:${sourceInfo}\n\n${content}`,
       },
     ],
   });
@@ -102,8 +117,9 @@ export async function extractEvents(
   }
 
   const pageType = validatePageType(parsed.pageType);
+  const fallbackWebsite = pageType !== "listing";
   const events = (parsed.events || []).map((raw: RawEvent, i: number) =>
-    normalizeEvent(raw, i, sourceUrl)
+    normalizeEvent(raw, i, fallbackWebsite ? sourceUrl : undefined)
   );
 
   return { pageType, events };
@@ -168,4 +184,73 @@ function validateRegion(region?: string): Region | null {
   return (REGIONS as readonly string[]).includes(region)
     ? (region as Region)
     : null;
+}
+
+const ENRICHMENT_BATCH_SIZE = 3;
+const MAX_ENRICHMENT_EVENTS = 10;
+
+export async function enrichEventsFromDetailPages(
+  events: ExtractedEvent[],
+  sourceUrl: string
+): Promise<ExtractedEvent[]> {
+  // Find events that need enrichment: missing dates but have a distinct URL
+  const candidates = events.filter(
+    (e) =>
+      e.startDate === null &&
+      e.website !== null &&
+      e.website !== sourceUrl
+  );
+
+  if (candidates.length === 0) return events;
+
+  const toEnrich = candidates.slice(0, MAX_ENRICHMENT_EVENTS);
+
+  // Build a map of website -> enriched data
+  const enrichedMap = new Map<string, ExtractedEvent>();
+
+  // Process in batches
+  for (let i = 0; i < toEnrich.length; i += ENRICHMENT_BATCH_SIZE) {
+    const batch = toEnrich.slice(i, i + ENRICHMENT_BATCH_SIZE);
+
+    const results = await Promise.allSettled(
+      batch.map(async (event) => {
+        const scrapeResult = await scrapeUrl(event.website!);
+        if (!scrapeResult.markdown.trim()) return null;
+
+        const extraction = await extractEvents(
+          scrapeResult.markdown,
+          undefined,
+          event.website!
+        );
+
+        if (extraction.events.length === 0) return null;
+        return { url: event.website!, enriched: extraction.events[0] };
+      })
+    );
+
+    for (const result of results) {
+      if (
+        result.status === "fulfilled" &&
+        result.value !== null
+      ) {
+        enrichedMap.set(result.value.url, result.value.enriched);
+      }
+    }
+  }
+
+  // Merge enriched data back — only fill null fields
+  return events.map((event) => {
+    if (!event.website || !enrichedMap.has(event.website)) return event;
+
+    const enriched = enrichedMap.get(event.website)!;
+    return {
+      ...event,
+      description: event.description ?? enriched.description,
+      startDate: event.startDate ?? enriched.startDate,
+      endDate: event.endDate ?? enriched.endDate,
+      price: event.price ?? enriched.price,
+      eventType: event.eventType ?? enriched.eventType,
+      region: event.region ?? enriched.region,
+    };
+  });
 }
