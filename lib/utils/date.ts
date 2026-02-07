@@ -153,3 +153,79 @@ export function getWeekStartForRow(
   const date = new Date(year, month, dayInRow);
   return getWeekStart(date);
 }
+
+/** Generate an array of Dates for a range of months */
+export function generateDateRange(
+  startYear: number,
+  startMonth: number,
+  months: number
+): Date[] {
+  const dates: Date[] = [];
+  for (let m = 0; m < months; m++) {
+    const totalMonth = startMonth + m;
+    const year = startYear + Math.floor(totalMonth / 12);
+    const month = totalMonth % 12;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+      dates.push(new Date(year, month, d));
+    }
+  }
+  return dates;
+}
+
+/** Check if a date is in the past (before today) */
+export function isDateInPast(date: Date): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d < today;
+}
+
+/** Check if two dates are the same calendar day */
+export function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+/** Check if a date is the 1st of its month */
+export function isFirstOfMonth(date: Date): boolean {
+  return date.getDate() === 1;
+}
+
+/** Generate an ICS calendar file string for an event */
+export function generateICS(event: {
+  name: string;
+  description?: string | null;
+  startDate: Date;
+  endDate?: Date | null;
+  website?: string | null;
+}): string {
+  const fmt = (d: Date) =>
+    d
+      .toISOString()
+      .replace(/[-:]/g, "")
+      .replace(/\.\d{3}/, "");
+  const start = new Date(event.startDate);
+  const end = event.endDate ? new Date(event.endDate) : new Date(start.getTime() + 3600000);
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//TechWeek//EN",
+    "BEGIN:VEVENT",
+    `DTSTART:${fmt(start)}`,
+    `DTEND:${fmt(end)}`,
+    `SUMMARY:${event.name}`,
+  ];
+  if (event.description) {
+    lines.push(`DESCRIPTION:${event.description.replace(/\n/g, "\\n")}`);
+  }
+  if (event.website) {
+    lines.push(`URL:${event.website}`);
+  }
+  lines.push("END:VEVENT", "END:VCALENDAR");
+  return lines.join("\r\n");
+}

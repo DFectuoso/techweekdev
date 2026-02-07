@@ -35,7 +35,8 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-xl">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6">
+      <div className="max-w-xl">
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
 
       <Card className="mb-6">
@@ -79,6 +80,7 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

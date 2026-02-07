@@ -5,7 +5,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <AppHeader />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+      <main className="flex-1">
         {children}
       </main>
       <Footer />

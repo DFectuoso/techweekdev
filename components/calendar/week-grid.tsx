@@ -1,0 +1,216 @@
+"use client";
+
+import { useState } from "react";
+import type { Event } from "@/lib/db/schema";
+import {
+  getDayName,
+  getShortMonthName,
+  isSameDay,
+  isDateInPast,
+} from "@/lib/utils/date";
+import { getFeaturedBarColor } from "@/lib/utils/event-colors";
+import { WeekEventCard } from "./week-event-card";
+import { EventDetailDrawer } from "./event-detail-drawer";
+
+interface WeekGridProps {
+  weekStart: Date;
+  events: Event[];
+  featuredEvents: Event[];
+}
+
+export function WeekGrid({ weekStart, events, featuredEvents }: WeekGridProps) {
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+
+  const today = new Date();
+
+  // Generate 7 days starting from weekStart (Monday)
+  const days = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
+  // Group events by day
+  const eventsByDay: Record<string, Event[]> = {};
+  for (const event of events) {
+    const key = new Date(event.startDate).toDateString();
+    if (!eventsByDay[key]) eventsByDay[key] = [];
+    eventsByDay[key]!.push(event);
+  }
+
+  // Sort each day's events by start time
+  for (const key of Object.keys(eventsByDay)) {
+    eventsByDay[key]!.sort(
+      (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+    );
+  }
+
+  // Compute featured bar spans
+  const featuredBars = featuredEvents.map((event, idx) => {
+    const eventStart = new Date(event.startDate);
+    const eventEnd = event.endDate ? new Date(event.endDate) : eventStart;
+
+    let startCol = -1;
+    let endCol = -1;
+    for (let i = 0; i < 7; i++) {
+      const day = days[i]!;
+      if (day >= eventStart || isSameDay(day, eventStart)) {
+        if (startCol === -1) startCol = i;
+        endCol = i;
+      }
+      if (day > eventEnd && !isSameDay(day, eventEnd)) break;
+    }
+
+    // Clamp to week bounds
+    if (startCol === -1) {
+      // Event starts before the week
+      if (eventEnd >= days[0]!) {
+        startCol = 0;
+        for (let i = 0; i < 7; i++) {
+          if (days[i]! <= eventEnd || isSameDay(days[i]!, eventEnd)) {
+            endCol = i;
+          }
+        }
+      }
+    }
+
+    return { event, idx, startCol, endCol };
+  }).filter((b) => b.startCol !== -1 && b.endCol !== -1);
+
+  // Simple lane assignment for featured bars
+  const lanes: { end: number }[] = [];
+  for (const bar of featuredBars) {
+    let placed = false;
+    for (let l = 0; l < lanes.length; l++) {
+      if (lanes[l]!.end < bar.startCol) {
+        lanes[l]!.end = bar.endCol;
+        (bar as typeof bar & { lane: number }).lane = l;
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      (bar as typeof bar & { lane: number }).lane = lanes.length;
+      lanes.push({ end: bar.endCol });
+    }
+  }
+
+  const barHeight = 24;
+  const barGap = 4;
+  const featuredAreaHeight =
+    featuredBars.length > 0
+      ? Math.min(lanes.length, 3) * (barHeight + barGap) + 8
+      : 0;
+
+  return (
+    <>
+      <div className="overflow-x-auto">
+        <div className="min-w-[700px]">
+          {/* Featured bars area */}
+          {featuredBars.length > 0 && (
+            <div
+              className="relative mb-2"
+              style={{ height: `${featuredAreaHeight}px` }}
+            >
+              {featuredBars.map((bar) => {
+                const lane = (bar as typeof bar & { lane: number }).lane;
+                if (lane >= 3) return null;
+
+                const leftPct = (bar.startCol / 7) * 100;
+                const widthPct = ((bar.endCol - bar.startCol + 1) / 7) * 100;
+                const top = lane * (barHeight + barGap);
+
+                return (
+                  <button
+                    key={bar.event.id}
+                    onClick={() => setSelectedEvent(bar.event)}
+                    className={`absolute flex items-center rounded-md overflow-hidden ${getFeaturedBarColor(bar.idx)} hover:opacity-80 transition-opacity`}
+                    style={{
+                      left: `${leftPct}%`,
+                      width: `${widthPct}%`,
+                      top: `${top}px`,
+                      height: `${barHeight}px`,
+                    }}
+                  >
+                    <span className="truncate px-2 text-xs italic font-medium text-foreground/70">
+                      {bar.event.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Column headers */}
+          <div className="grid grid-cols-7 border-b border-border">
+            {days.map((day, i) => {
+              const isToday = isSameDay(day, today);
+              return (
+                <div
+                  key={i}
+                  className={`px-2 py-2 text-center ${
+                    isToday ? "bg-primary/10" : ""
+                  }`}
+                >
+                  <p className="text-xs text-muted-foreground">
+                    {getDayName(day.getDay())}
+                  </p>
+                  <p
+                    className={`text-sm font-semibold ${
+                      isToday
+                        ? "inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                        : ""
+                    }`}
+                  >
+                    {day.getDate()}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {getShortMonthName(day.getMonth())}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Day columns with events */}
+          <div className="grid grid-cols-7 min-h-[400px]">
+            {days.map((day, i) => {
+              const key = day.toDateString();
+              const dayEvents = eventsByDay[key] || [];
+              const isToday = isSameDay(day, today);
+              const isPast = isDateInPast(day);
+
+              return (
+                <div
+                  key={i}
+                  className={`border-r border-border last:border-r-0 p-1.5 space-y-1.5 ${
+                    isToday ? "bg-primary/5" : ""
+                  } ${isPast && !isToday ? "opacity-50" : ""}`}
+                >
+                  {dayEvents.length > 0 ? (
+                    dayEvents.map((event) => (
+                      <WeekEventCard
+                        key={event.id}
+                        event={event}
+                        onClick={() => setSelectedEvent(event)}
+                      />
+                    ))
+                  ) : (
+                    <p className="py-4 text-center text-xs text-muted-foreground italic">
+                      No events
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <EventDetailDrawer
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+      />
+    </>
+  );
+}

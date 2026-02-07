@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { events } from "@/lib/db/schema";
-import { and, gte, lte, eq, asc, desc, type SQL } from "drizzle-orm";
+import { and, gte, lte, eq, asc, desc, inArray, type SQL } from "drizzle-orm";
 import type { EventType, Region, Event } from "@/lib/db/schema";
 
 export async function getEventsBetween(
@@ -52,4 +52,25 @@ export async function getEventById(id: string): Promise<Event | undefined> {
 
 export async function getAllEvents(): Promise<Event[]> {
   return db.select().from(events).orderBy(desc(events.startDate));
+}
+
+export async function getEventsBetweenFiltered(
+  start: Date,
+  end: Date,
+  eventTypes?: EventType[]
+): Promise<Event[]> {
+  const conditions: SQL[] = [
+    gte(events.startDate, start),
+    lte(events.startDate, end),
+  ];
+
+  if (eventTypes && eventTypes.length > 0) {
+    conditions.push(inArray(events.eventType, eventTypes));
+  }
+
+  return db
+    .select()
+    .from(events)
+    .where(and(...conditions))
+    .orderBy(asc(events.startDate));
 }

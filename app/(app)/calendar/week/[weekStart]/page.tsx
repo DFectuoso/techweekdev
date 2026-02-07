@@ -1,18 +1,24 @@
 export const dynamic = "force-dynamic";
 
-import { getEventsBetween } from "@/lib/queries/events";
+import { Suspense } from "react";
+import {
+  getEventsBetweenFiltered,
+  getFeaturedEvents,
+} from "@/lib/queries/events";
 import {
   parseDateParam,
   formatDateParam,
-  formatMonthParam,
   getWeekEnd,
   getShortMonthName,
 } from "@/lib/utils/date";
-import { WeekView } from "@/components/calendar/week-view";
+import { parseEventTypeFilter } from "@/lib/utils/filters";
+import { WeekGrid } from "@/components/calendar/week-grid";
 import { CalendarNav } from "@/components/calendar/calendar-nav";
+import { CategoryFilter } from "@/components/calendar/category-filter";
 
 interface Props {
   params: Promise<{ weekStart: string }>;
+  searchParams: Promise<{ types?: string }>;
 }
 
 export async function generateMetadata({ params }: Props) {
@@ -23,12 +29,27 @@ export async function generateMetadata({ params }: Props) {
   };
 }
 
-export default async function WeekPage({ params }: Props) {
+export default async function WeekPage({ params, searchParams }: Props) {
   const { weekStart: weekParam } = await params;
+  const { types: typesParam } = await searchParams;
+  const eventTypes = parseEventTypeFilter(typesParam);
+
   const weekStart = parseDateParam(weekParam);
   const weekEnd = getWeekEnd(weekStart);
 
-  const events = await getEventsBetween(weekStart, weekEnd);
+  const [events, featuredEvents] = await Promise.all([
+    getEventsBetweenFiltered(
+      weekStart,
+      weekEnd,
+      eventTypes.length > 0 ? eventTypes : undefined
+    ),
+    getFeaturedEvents(weekStart, weekEnd),
+  ]);
+
+  const filteredFeatured = featuredEvents.filter((e) => {
+    if (eventTypes.length === 0) return true;
+    return e.eventType && eventTypes.includes(e.eventType);
+  });
 
   // Prev / next week
   const prevWeek = new Date(weekStart);
@@ -36,20 +57,11 @@ export default async function WeekPage({ params }: Props) {
   const nextWeek = new Date(weekStart);
   nextWeek.setDate(nextWeek.getDate() + 7);
 
-  const monthParam = formatMonthParam(
-    weekStart.getFullYear(),
-    weekStart.getMonth()
-  );
-
   return (
-    <div>
+    <div className="mx-auto w-full max-w-6xl px-4 py-6">
       <CalendarNav
         breadcrumbs={[
           { label: "Calendar", href: "/calendar" },
-          {
-            label: `${getShortMonthName(weekStart.getMonth())} ${weekStart.getFullYear()}`,
-            href: `/calendar/month/${monthParam}`,
-          },
           {
             label: `Week of ${getShortMonthName(weekStart.getMonth())} ${weekStart.getDate()}`,
           },
@@ -66,7 +78,17 @@ export default async function WeekPage({ params }: Props) {
         {weekEnd.getFullYear()}
       </h1>
 
-      <WeekView weekStart={weekStart} events={events} />
+      <div className="mb-4">
+        <Suspense>
+          <CategoryFilter />
+        </Suspense>
+      </div>
+
+      <WeekGrid
+        weekStart={weekStart}
+        events={events}
+        featuredEvents={filteredFeatured}
+      />
     </div>
   );
 }
