@@ -1,0 +1,38 @@
+import type { NextAuthConfig } from "next-auth";
+import Google from "next-auth/providers/google";
+
+/**
+ * Edge-safe auth config — no Node.js dependencies (no bcryptjs, no DB).
+ * Used by middleware.ts for route protection.
+ */
+export default {
+  providers: [Google],
+  pages: {
+    signIn: "/login",
+  },
+  callbacks: {
+    authorized({ auth, request: { nextUrl } }) {
+      const isLoggedIn = !!auth?.user;
+      const path = nextUrl.pathname;
+
+      // Protected routes
+      const isProtected =
+        path.startsWith("/calendar") ||
+        path.startsWith("/settings") ||
+        path.startsWith("/admin");
+
+      // Auth pages (login/signup) — redirect logged-in users to calendar
+      const isAuthPage = path === "/login" || path === "/signup";
+
+      if (isProtected && !isLoggedIn) {
+        return false; // redirects to signIn page
+      }
+
+      if (isAuthPage && isLoggedIn) {
+        return Response.redirect(new URL("/calendar", nextUrl));
+      }
+
+      return true;
+    },
+  },
+} satisfies NextAuthConfig;
