@@ -20,10 +20,11 @@ import {
 import { EventDensityIndicator } from "./event-density-indicator";
 
 const CELL_WIDTH = 58;
-const CELL_HEIGHT = 64;
-const BAR_HEIGHT = 16;
+const CELL_HEIGHT = 92;
+const BAR_HEIGHT = 20;
 const BAR_GAP = 2;
-const MAX_VISIBLE_LANES = 3;
+const MAX_VISIBLE_LANES = 2;
+const BAR_BOTTOM_OFFSET = 26; // space for density indicator below bars
 
 const DAY_ABBR = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
@@ -216,8 +217,8 @@ export function YearGrid({
                             {date.getDate()}
                           </span>
                         </div>
-                        {/* Event count in center of cell */}
-                        <div className="flex-1 flex items-center justify-center">
+                        {/* Event count — sits at bottom, featured bars overlay it */}
+                        <div className="flex-1 flex items-end justify-center pb-1">
                           <EventDensityIndicator count={count} />
                         </div>
                       </div>
@@ -227,10 +228,9 @@ export function YearGrid({
 
                 {/* Featured bars overlaid at bottom of cells */}
                 {visibleBars.map((seg, si) => {
-                  const left = (seg.startCol / cellsPerRow) * 100;
-                  const width =
-                    ((seg.endCol - seg.startCol + 1) / cellsPerRow) * 100;
-                  const bottom = seg.lane * (BAR_HEIGHT + BAR_GAP);
+                  const left = seg.startCol * CELL_WIDTH;
+                  const width = (seg.endCol - seg.startCol + 1) * CELL_WIDTH;
+                  const bottom = BAR_BOTTOM_OFFSET + seg.lane * (BAR_HEIGHT + BAR_GAP);
                   const barColor = getFeaturedBarColor(seg.eventIndex);
 
                   const roundedLeft = seg.isFirst
@@ -242,8 +242,8 @@ export function YearGrid({
 
                   const barClass = `group absolute z-10 flex items-center overflow-hidden hover:overflow-visible hover:z-20 ${barColor} ${roundedLeft} ${roundedRight}`;
                   const barStyle = {
-                    left: `${left}%`,
-                    width: `${width}%`,
+                    left: `${left}px`,
+                    width: `${width}px`,
                     bottom: `${bottom}px`,
                     height: `${BAR_HEIGHT}px`,
                   };

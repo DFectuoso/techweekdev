@@ -10,8 +10,11 @@ import {
   formatDateParam,
 } from "@/lib/utils/date";
 import { parseEventTypeFilter } from "@/lib/utils/filters";
+import { auth } from "@/lib/auth";
+import { getUserNewsletterStatus } from "@/lib/queries/users";
 import { YearGrid } from "@/components/calendar/year-grid";
 import { CategoryFilter } from "@/components/calendar/category-filter";
+import { NewsletterBanner } from "@/components/calendar/newsletter-banner";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Calendar — TechWeek" };
@@ -34,9 +37,12 @@ export default async function CalendarPage({ searchParams }: Props) {
   const endMonthNorm = endMonth % 12;
   const end = getMonthEnd(endYear, endMonthNorm);
 
-  const [allEvents, featuredEvents] = await Promise.all([
+  const session = await auth();
+
+  const [allEvents, featuredEvents, newsletterOptIn] = await Promise.all([
     getEventsBetweenFiltered(start, end, eventTypes.length > 0 ? eventTypes : undefined),
     getFeaturedEvents(start, end),
+    session?.user?.id ? getUserNewsletterStatus(session.user.id) : Promise.resolve(true),
   ]);
 
   // Generate date range for 12 months
@@ -68,6 +74,7 @@ export default async function CalendarPage({ searchParams }: Props) {
           </Suspense>
         </div>
       </div>
+      {!newsletterOptIn && <NewsletterBanner />}
       <YearGrid
         dates={dateStrings}
         eventCountByDate={eventCountByDate}

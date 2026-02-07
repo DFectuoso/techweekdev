@@ -12,6 +12,15 @@ export async function getNewsletterSubscribers(): Promise<
     .then((rows) => rows.filter((r): r is typeof r & { email: string } => r.email !== null));
 }
 
+export async function getUserNewsletterStatus(userId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ newsletterOptIn: users.newsletterOptIn })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return row?.newsletterOptIn ?? false;
+}
+
 export async function unsubscribeUser(userId: string): Promise<void> {
   await db
     .update(users)
