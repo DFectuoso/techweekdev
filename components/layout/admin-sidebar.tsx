@@ -7,6 +7,7 @@ const links = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/events", label: "Events" },
   { href: "/admin/events/new", label: "New Event" },
+  { href: "/admin/events/import", label: "Import from URL" },
 ];
 
 export function AdminSidebar() {

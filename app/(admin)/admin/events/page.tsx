@@ -9,9 +9,14 @@ export default function AdminEventsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Events</h1>
-        <Link href="/admin/events/new">
-          <Button>New Event</Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/events/import">
+            <Button variant="outline">Import from URL</Button>
+          </Link>
+          <Link href="/admin/events/new">
+            <Button>New Event</Button>
+          </Link>
+        </div>
       </div>
       <EventTable />
     </div>

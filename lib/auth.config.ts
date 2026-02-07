@@ -6,7 +6,7 @@ import Google from "next-auth/providers/google";
  * Used by middleware.ts for route protection.
  */
 export default {
-  providers: [Google],
+  providers: [Google({ allowDangerousEmailAccountLinking: true })],
   pages: {
     signIn: "/login",
   },
@@ -21,8 +21,8 @@ export default {
         path.startsWith("/settings") ||
         path.startsWith("/admin");
 
-      // Auth pages (login/signup) — redirect logged-in users to calendar
-      const isAuthPage = path === "/login" || path === "/signup";
+      // Auth / landing pages — redirect logged-in users to calendar
+      const isAuthPage = path === "/" || path === "/login" || path === "/signup";
 
       if (isProtected && !isLoggedIn) {
         return false; // redirects to signIn page
