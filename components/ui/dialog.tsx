@@ -27,7 +27,7 @@ export function Dialog({ open, onClose, children, title }: DialogProps) {
     <dialog
       ref={dialogRef}
       onClose={onClose}
-      className="backdrop:bg-black/50 rounded-lg border border-border bg-card p-0 shadow-lg max-w-md w-full"
+      className="fixed inset-0 m-auto backdrop:bg-black/50 rounded-lg border border-border bg-card p-0 shadow-lg max-w-md w-full max-h-[85vh] overflow-y-auto"
     >
       <div className="p-6">
         {title && (

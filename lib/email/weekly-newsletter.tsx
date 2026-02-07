@@ -48,12 +48,13 @@ export function WeeklyNewsletter({
 
           <Hr style={hr} />
 
-          {/* AI Intro */}
-          {aiIntro && (
-            <Section style={section}>
-              <Text style={introText}>{aiIntro}</Text>
-            </Section>
-          )}
+          {/* Week heading + AI Intro */}
+          <Section style={section}>
+            <Heading as="h2" style={weekHeading}>
+              {weekLabel}
+            </Heading>
+            {aiIntro && <Text style={introText}>{aiIntro}</Text>}
+          </Section>
 
           {/* This Week */}
           <Section style={section}>
@@ -86,13 +87,23 @@ export function WeeklyNewsletter({
             </>
           )}
 
+          {/* CTA Button */}
+          <Section style={ctaSection}>
+            <Link href={appUrl} style={ctaButton}>
+              See all {weekEvents.length + featuredEvents.length} events on the calendar
+            </Link>
+          </Section>
+
           {/* Footer */}
           <Hr style={hr} />
           <Section style={footer}>
-            <Text style={footerText}>
-              <Link href={appUrl} style={footerLink}>
-                View full calendar
-              </Link>
+            <Text style={signOffText}>Good vibes, see you next week!</Text>
+            <Text style={followText}>
+              Follow{" "}
+              <Link href="https://x.com/dfect" style={twitterLink}>
+                @dfect
+              </Link>{" "}
+              on Twitter for more on startups, innovation, and Bay Area tech.
             </Text>
             <Text style={footerText}>
               <Link href={unsubscribeUrl} style={footerLink}>
@@ -186,6 +197,15 @@ const h2: React.CSSProperties = {
   margin: "0 0 16px",
 };
 
+const weekHeading: React.CSSProperties = {
+  fontSize: "16px",
+  fontWeight: "600",
+  color: "#71717a",
+  textTransform: "uppercase" as const,
+  letterSpacing: "0.05em",
+  margin: "0 0 12px",
+};
+
 const introText: React.CSSProperties = {
   fontSize: "15px",
   lineHeight: "1.6",
@@ -250,4 +270,41 @@ const footerText: React.CSSProperties = {
 const footerLink: React.CSSProperties = {
   color: "#71717a",
   textDecoration: "underline",
+};
+
+const ctaSection: React.CSSProperties = {
+  textAlign: "center" as const,
+  padding: "10px 0 20px",
+};
+
+const ctaButton: React.CSSProperties = {
+  display: "inline-block",
+  backgroundColor: "#e11d48",
+  color: "#ffffff",
+  fontSize: "16px",
+  fontWeight: "bold",
+  textDecoration: "none",
+  padding: "16px 32px",
+  borderRadius: "8px",
+  textAlign: "center" as const,
+};
+
+const signOffText: React.CSSProperties = {
+  fontSize: "14px",
+  color: "#3f3f46",
+  margin: "0 0 8px",
+  fontWeight: "600",
+};
+
+const followText: React.CSSProperties = {
+  fontSize: "13px",
+  color: "#71717a",
+  margin: "0 0 16px",
+  lineHeight: "1.5",
+};
+
+const twitterLink: React.CSSProperties = {
+  color: "#e11d48",
+  textDecoration: "none",
+  fontWeight: "600",
 };

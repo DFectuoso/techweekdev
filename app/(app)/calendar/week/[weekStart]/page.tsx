@@ -12,7 +12,9 @@ import {
   getShortMonthName,
 } from "@/lib/utils/date";
 import { parseEventTypeFilter } from "@/lib/utils/filters";
+import { auth } from "@/lib/auth";
 import { WeekGrid } from "@/components/calendar/week-grid";
+import { SuggestEventForm } from "@/components/calendar/suggest-event-form";
 import { CalendarNav } from "@/components/calendar/calendar-nav";
 import { CategoryFilter } from "@/components/calendar/category-filter";
 
@@ -36,6 +38,7 @@ export default async function WeekPage({ params, searchParams }: Props) {
 
   const weekStart = parseDateParam(weekParam);
   const weekEnd = getWeekEnd(weekStart);
+  const session = await auth();
 
   const [events, featuredEvents] = await Promise.all([
     getEventsBetweenFiltered(
@@ -89,6 +92,7 @@ export default async function WeekPage({ params, searchParams }: Props) {
         events={events}
         featuredEvents={filteredFeatured}
       />
+      <SuggestEventForm isLoggedIn={!!session} />
     </div>
   );
 }

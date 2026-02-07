@@ -20,11 +20,11 @@ import {
 import { EventDensityIndicator } from "./event-density-indicator";
 
 const CELL_WIDTH = 58;
-const CELL_HEIGHT = 92;
+const CELL_HEIGHT = 100;
 const BAR_HEIGHT = 20;
 const BAR_GAP = 2;
 const MAX_VISIBLE_LANES = 2;
-const BAR_BOTTOM_OFFSET = 26; // space for density indicator below bars
+const BAR_BOTTOM_OFFSET = 32; // space for density indicator below bars
 
 const DAY_ABBR = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
@@ -248,7 +248,7 @@ export function YearGrid({
                     height: `${BAR_HEIGHT}px`,
                   };
                   const label = seg.isFirst ? (
-                    <span className={`whitespace-nowrap px-1.5 text-[10px] italic text-foreground/70 ${barColor} group-hover:pr-2 group-hover:rounded-r-md`}>
+                    <span className={`whitespace-nowrap h-full flex items-center px-1.5 text-[10px] italic text-foreground/70 ${barColor} group-hover:pr-2 group-hover:rounded-r-md`}>
                       {seg.event.name}
                     </span>
                   ) : null;

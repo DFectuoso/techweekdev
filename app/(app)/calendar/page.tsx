@@ -13,6 +13,7 @@ import { parseEventTypeFilter } from "@/lib/utils/filters";
 import { auth } from "@/lib/auth";
 import { getUserNewsletterStatus } from "@/lib/queries/users";
 import { YearGrid } from "@/components/calendar/year-grid";
+import { SuggestEventForm } from "@/components/calendar/suggest-event-form";
 import { CategoryFilter } from "@/components/calendar/category-filter";
 import { NewsletterBanner } from "@/components/calendar/newsletter-banner";
 
@@ -80,6 +81,7 @@ export default async function CalendarPage({ searchParams }: Props) {
         eventCountByDate={eventCountByDate}
         featuredEvents={filteredFeatured}
       />
+      <SuggestEventForm isLoggedIn={!!session} />
     </div>
   );
 }

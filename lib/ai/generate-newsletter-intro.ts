@@ -21,6 +21,7 @@ export async function generateNewsletterIntro(
         const parts = [e.name];
         if (e.eventType) parts.push(`(${e.eventType})`);
         if (e.region) parts.push(`in ${e.region}`);
+        if (e.startDate) parts.push(`on ${new Date(e.startDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}`);
         return parts.join(" ");
       })
       .join("; ");
@@ -34,9 +35,9 @@ export async function generateNewsletterIntro(
       max_tokens: 300,
       system:
         "You write short newsletter intros for a Bay Area tech events calendar called TechWeek. " +
-        "Write 2-3 sentences that are professional but friendly. No emoji. " +
-        "Mention the overall vibe of the week (e.g. heavy on networking, a big conference week, etc). " +
-        "Do not list individual events by name. Just give a feel for what the week looks like.",
+        "Write 2-3 sentences that are professional, concise, and specific. No emoji. No markdown. No headings. " +
+        "Mention 2-3 standout events by name and why they're worth checking out. " +
+        "Give readers a reason to scroll down. Do not start with a greeting or \"this week\".",
       messages: [
         {
           role: "user",

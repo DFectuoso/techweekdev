@@ -43,31 +43,21 @@ export function WeekGrid({ weekStart, events, featuredEvents }: WeekGridProps) {
 
   // Compute featured bar spans
   const featuredBars = featuredEvents.map((event, idx) => {
-    const eventStart = new Date(event.startDate);
-    const eventEnd = event.endDate ? new Date(event.endDate) : eventStart;
+    const es = new Date(event.startDate);
+    const ee = event.endDate ? new Date(event.endDate) : es;
+    // Normalize to midnight so time-of-day doesn't skew day-level comparisons
+    const startDay = new Date(es.getFullYear(), es.getMonth(), es.getDate());
+    const endDay = new Date(ee.getFullYear(), ee.getMonth(), ee.getDate());
 
     let startCol = -1;
     let endCol = -1;
     for (let i = 0; i < 7; i++) {
       const day = days[i]!;
-      if (day >= eventStart || isSameDay(day, eventStart)) {
+      if (day >= startDay && day <= endDay) {
         if (startCol === -1) startCol = i;
         endCol = i;
       }
-      if (day > eventEnd && !isSameDay(day, eventEnd)) break;
-    }
-
-    // Clamp to week bounds
-    if (startCol === -1) {
-      // Event starts before the week
-      if (eventEnd >= days[0]!) {
-        startCol = 0;
-        for (let i = 0; i < 7; i++) {
-          if (days[i]! <= eventEnd || isSameDay(days[i]!, eventEnd)) {
-            endCol = i;
-          }
-        }
-      }
+      if (day > endDay) break;
     }
 
     return { event, idx, startCol, endCol };
@@ -115,38 +105,38 @@ export function WeekGrid({ weekStart, events, featuredEvents }: WeekGridProps) {
               const widthPct = ((bar.endCol - bar.startCol + 1) / 7) * 100;
               const top = lane * (barHeight + barGap);
 
+              const barColor = getFeaturedBarColor(bar.idx);
+              const barClass = `group absolute z-10 flex items-center rounded-md overflow-hidden hover:overflow-visible hover:z-20 ${barColor}`;
+              const barStyle = {
+                left: `${leftPct}%`,
+                width: `${widthPct}%`,
+                top: `${top}px`,
+                height: `${barHeight}px`,
+              };
+              const label = (
+                <span className={`whitespace-nowrap h-full flex items-center px-2 text-xs italic font-medium text-foreground/70 ${barColor} group-hover:pr-3 group-hover:rounded-r-md`}>
+                  {bar.event.name}
+                </span>
+              );
+
               return bar.event.website ? (
                 <a
                   key={bar.event.id}
                   href={bar.event.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`absolute flex items-center rounded-md overflow-hidden ${getFeaturedBarColor(bar.idx)} hover:opacity-80 transition-opacity`}
-                  style={{
-                    left: `${leftPct}%`,
-                    width: `${widthPct}%`,
-                    top: `${top}px`,
-                    height: `${barHeight}px`,
-                  }}
+                  className={`${barClass} hover:opacity-90 transition-opacity`}
+                  style={barStyle}
                 >
-                  <span className="truncate px-2 text-xs italic font-medium text-foreground/70">
-                    {bar.event.name}
-                  </span>
+                  {label}
                 </a>
               ) : (
                 <div
                   key={bar.event.id}
-                  className={`absolute flex items-center rounded-md overflow-hidden ${getFeaturedBarColor(bar.idx)}`}
-                  style={{
-                    left: `${leftPct}%`,
-                    width: `${widthPct}%`,
-                    top: `${top}px`,
-                    height: `${barHeight}px`,
-                  }}
+                  className={barClass}
+                  style={barStyle}
                 >
-                  <span className="truncate px-2 text-xs italic font-medium text-foreground/70">
-                    {bar.event.name}
-                  </span>
+                  {label}
                 </div>
               );
             })}

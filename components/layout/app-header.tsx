@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { getWeekStart, formatDateParam } from "@/lib/utils/date";
 
 export function AppHeader() {
   const { data: session } = useSession();
+  const thisWeekHref = `/calendar/week/${formatDateParam(getWeekStart(new Date()))}`;
 
   return (
     <header className="border-b border-border bg-card">
@@ -22,13 +24,13 @@ export function AppHeader() {
               href="/calendar"
               className="text-sm font-medium text-muted-foreground hover:text-foreground"
             >
-              Calendar
+              Full Year
             </Link>
             <Link
-              href="/settings"
+              href={thisWeekHref}
               className="text-sm font-medium text-muted-foreground hover:text-foreground"
             >
-              Settings
+              This Week
             </Link>
             {session?.user?.isAdmin && (
               <Link
