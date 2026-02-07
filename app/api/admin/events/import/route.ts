@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { scrapeUrl, scrapePricingPages } from "@/lib/firecrawl";
-import { extractEvents, enrichEventsFromDetailPages } from "@/lib/ai/extract-events";
+import { extractEvents, enrichEventsFromDetailPages, classifyEvents } from "@/lib/ai/extract-events";
 import { isLumaUrl, fetchLumaEvents } from "@/lib/luma";
 import type { ImportResponse } from "@/types/import";
 
@@ -31,8 +31,9 @@ export async function POST(request: Request) {
     if (isLumaUrl(url)) {
       const lumaResult = await fetchLumaEvents(url);
       if (lumaResult) {
+        const classified = await classifyEvents(lumaResult.events);
         return NextResponse.json({
-          events: lumaResult.events,
+          events: classified,
           sourceUrl: url,
           pageType: lumaResult.pageType,
         });

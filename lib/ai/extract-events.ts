@@ -186,6 +186,87 @@ function validateRegion(region?: string): Region | null {
     : null;
 }
 
+// ── Classify Luma events (fill in eventType, region, description) ────
+
+export async function classifyEvents(
+  events: ExtractedEvent[]
+): Promise<ExtractedEvent[]> {
+  // Find events missing at least one of eventType, region, or description
+  const needsClassification = events.filter(
+    (e) => e.eventType === null || e.region === null || e.description === null
+  );
+
+  if (needsClassification.length === 0) return events;
+
+  // Build a lightweight prompt listing just the events
+  const eventLines = needsClassification.map((e, i) => {
+    const desc = e.description ? ` — ${e.description}` : "";
+    const url = e.website ? ` (${e.website})` : "";
+    return `${i + 1}. "${e.name}"${url}${desc}`;
+  });
+
+  const systemPrompt = `You classify Bay Area tech events. For each event, provide:
+- eventType: one of ${EVENT_TYPES.join(", ")}
+- region: one of ${REGIONS.join(", ")}
+- description: a brief 1-2 sentence description of the event
+
+Return ONLY a JSON array (no markdown, no code fences) with one object per event, in the same order:
+[{ "eventType": "...", "region": "...", "description": "..." }, ...]
+
+If you cannot determine a field, set it to null.`;
+
+  try {
+    const message = await getClient().messages.create({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: `Classify these tech events:\n\n${eventLines.join("\n")}`,
+        },
+      ],
+    });
+
+    const text =
+      message.content[0].type === "text" ? message.content[0].text : "";
+    const cleaned = text.replace(/```json\n?|\n?```/g, "").trim();
+    const classifications: Array<{
+      eventType?: string;
+      region?: string;
+      description?: string;
+    }> = JSON.parse(cleaned);
+
+    if (!Array.isArray(classifications)) return events;
+
+    // Build a map from _tempId to classification
+    const classMap = new Map<
+      string,
+      { eventType?: string; region?: string; description?: string }
+    >();
+    needsClassification.forEach((e, i) => {
+      if (i < classifications.length) {
+        classMap.set(e._tempId, classifications[i]);
+      }
+    });
+
+    // Merge — only fill in fields that are currently null
+    return events.map((event) => {
+      const c = classMap.get(event._tempId);
+      if (!c) return event;
+      return {
+        ...event,
+        eventType: event.eventType ?? validateEventType(c.eventType),
+        region: event.region ?? validateRegion(c.region),
+        description: event.description ?? (c.description || null),
+      };
+    });
+  } catch (err) {
+    console.error("classifyEvents failed, returning original events:", err);
+    return events;
+  }
+}
+
 const ENRICHMENT_BATCH_SIZE = 3;
 const MAX_ENRICHMENT_EVENTS = 10;
 
