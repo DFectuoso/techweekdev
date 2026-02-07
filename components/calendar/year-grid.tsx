@@ -19,8 +19,8 @@ import {
 } from "@/lib/utils/year-grid-layout";
 import { EventDensityIndicator } from "./event-density-indicator";
 
-const CELL_WIDTH = 54;
-const CELL_HEIGHT = 44;
+const CELL_WIDTH = 58;
+const CELL_HEIGHT = 48;
 const BAR_HEIGHT = 16;
 const BAR_GAP = 2;
 const MAX_VISIBLE_LANES = 3;
@@ -175,13 +175,13 @@ export function YearGrid({
                         : isWeekend
                           ? "bg-black/[0.06] dark:bg-white/[0.06]"
                           : ""
-                    } ${isPast && !isToday ? "opacity-50" : ""}`}
+                    } ${isPast && !isToday ? "opacity-50" : ""} ${isFirst ? "border-l-[3px] border-l-muted-foreground/60" : ""}`}
                     style={{ width: CELL_WIDTH, height: CELL_HEIGHT }}
                   >
                     {/* Top line: day abbr (or month name) left, day number right */}
-                    <div className="flex justify-between items-baseline px-1 pt-0.5">
+                    <div className={`flex justify-between items-baseline ${isFirst ? "pl-0 pr-1" : "px-1"} pt-0.5`}>
                       {isFirst ? (
-                        <span className="text-[9px] font-semibold leading-tight text-rose-600 dark:text-rose-400">
+                        <span className="text-[10px] font-bold leading-tight uppercase bg-muted-foreground/70 text-white px-0.5 py-[1px] rounded-r-sm">
                           {getShortMonthName(date.getMonth())}
                         </span>
                       ) : (
