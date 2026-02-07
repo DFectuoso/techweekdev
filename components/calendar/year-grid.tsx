@@ -83,43 +83,65 @@ export function YearGrid({
     return () => clearTimeout(timer);
   }, []);
 
-  // Chunk dates into rows
-  const rows = useMemo(() => {
+  // Split dates into per-year groups
+  type YearGroup = {
+    year: number;
+    dates: Date[];
+    rows: Date[][];
+    segmentsByRow: Map<number, { visible: BarSegment[]; overflow: number }>;
+  };
+
+  const yearGroups = useMemo<YearGroup[]>(() => {
     if (cellsPerRow === 0) return [];
-    const result: Date[][] = [];
-    for (let i = 0; i < parsedDates.length; i += cellsPerRow) {
-      result.push(parsedDates.slice(i, i + cellsPerRow));
-    }
-    return result;
-  }, [parsedDates, cellsPerRow]);
 
-  // Compute bar segments
-  const segments = useMemo(() => {
-    if (cellsPerRow === 0 || featuredEvents.length === 0) return [];
-    const raw = computeFeaturedBarSegments(featuredEvents, parsedDates, cellsPerRow);
-    return assignBarLanes(raw);
-  }, [featuredEvents, parsedDates, cellsPerRow]);
-
-  // Group segments by row, compute visible/overflow
-  const segmentsByRow = useMemo(() => {
-    const map = new Map<number, { visible: BarSegment[]; overflow: number }>();
-    const byRow = new Map<number, BarSegment[]>();
-    for (const seg of segments) {
-      if (!byRow.has(seg.rowIndex)) byRow.set(seg.rowIndex, []);
-      byRow.get(seg.rowIndex)!.push(seg);
-    }
-    for (const [ri, segs] of byRow.entries()) {
-      const maxLane = Math.max(...segs.map((s) => s.lane));
-      if (maxLane < MAX_VISIBLE_LANES) {
-        map.set(ri, { visible: segs, overflow: 0 });
-      } else {
-        const visible = segs.filter((s) => s.lane < MAX_VISIBLE_LANES);
-        const hidden = segs.filter((s) => s.lane >= MAX_VISIBLE_LANES);
-        map.set(ri, { visible, overflow: hidden.length });
+    // Split dates by year
+    const groups: { year: number; dates: Date[] }[] = [];
+    let currentYear = -1;
+    for (const date of parsedDates) {
+      const y = date.getFullYear();
+      if (y !== currentYear) {
+        groups.push({ year: y, dates: [] });
+        currentYear = y;
       }
+      groups[groups.length - 1]!.dates.push(date);
     }
-    return map;
-  }, [segments]);
+
+    // For each group, compute rows and bar segments
+    return groups.map((group) => {
+      // Chunk into rows
+      const rows: Date[][] = [];
+      for (let i = 0; i < group.dates.length; i += cellsPerRow) {
+        rows.push(group.dates.slice(i, i + cellsPerRow));
+      }
+
+      // Compute bar segments scoped to this group's dates
+      let segments: BarSegment[] = [];
+      if (featuredEvents.length > 0) {
+        const raw = computeFeaturedBarSegments(featuredEvents, group.dates, cellsPerRow);
+        segments = assignBarLanes(raw);
+      }
+
+      // Group segments by row
+      const segmentsByRow = new Map<number, { visible: BarSegment[]; overflow: number }>();
+      const byRow = new Map<number, BarSegment[]>();
+      for (const seg of segments) {
+        if (!byRow.has(seg.rowIndex)) byRow.set(seg.rowIndex, []);
+        byRow.get(seg.rowIndex)!.push(seg);
+      }
+      for (const [ri, segs] of byRow.entries()) {
+        const maxLane = Math.max(...segs.map((s) => s.lane));
+        if (maxLane < MAX_VISIBLE_LANES) {
+          segmentsByRow.set(ri, { visible: segs, overflow: 0 });
+        } else {
+          const visible = segs.filter((s) => s.lane < MAX_VISIBLE_LANES);
+          const hidden = segs.filter((s) => s.lane >= MAX_VISIBLE_LANES);
+          segmentsByRow.set(ri, { visible, overflow: hidden.length });
+        }
+      }
+
+      return { year: group.year, dates: group.dates, rows, segmentsByRow };
+    });
+  }, [parsedDates, cellsPerRow, featuredEvents]);
 
   const handleDayClick = useCallback(
     (date: Date) => {
@@ -136,127 +158,136 @@ export function YearGrid({
 
   return (
     <div ref={containerRef}>
-      {rows.map((rowDates, rowIndex) => {
-        const barInfo = segmentsByRow.get(rowIndex);
-        const visibleBars = barInfo?.visible ?? [];
-        const overflow = barInfo?.overflow ?? 0;
-        const maxLane =
-          visibleBars.length > 0
-            ? Math.max(...visibleBars.map((s) => s.lane))
-            : -1;
-        const barAreaHeight =
-          visibleBars.length > 0
-            ? (maxLane + 1) * (BAR_HEIGHT + BAR_GAP) +
-              (overflow > 0 ? 14 : 0)
-            : 0;
-
-        return (
-          <div key={rowIndex}>
-            {/* Day cells */}
-            <div className="flex">
-              {rowDates.map((date, colIndex) => {
-                const globalIndex = rowIndex * cellsPerRow + colIndex;
-                const dateStr = dates[globalIndex]!;
-                const isToday = isSameDay(date, today);
-                const isPast = isDateInPast(date);
-                const isFirst = isFirstOfMonth(date);
-                const count = eventCountByDate[dateStr] || 0;
-                const dayOfWeek = date.getDay();
-                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
-                return (
-                  <div
-                    key={dateStr}
-                    ref={isToday ? todayRef : undefined}
-                    onClick={() => handleDayClick(date)}
-                    className={`flex flex-col flex-shrink-0 cursor-pointer rounded-md border border-border/40 transition-colors hover:bg-accent ${
-                      isToday
-                        ? "bg-primary/15 ring-1 ring-primary/40"
-                        : isWeekend
-                          ? "bg-black/[0.06] dark:bg-white/[0.06]"
-                          : ""
-                    } ${isPast && !isToday ? "opacity-50" : ""} ${isFirst ? "border-l-[3px] border-l-muted-foreground/60" : ""}`}
-                    style={{ width: CELL_WIDTH, height: CELL_HEIGHT }}
-                  >
-                    {/* Top line: day abbr (or month name) left, day number right */}
-                    <div className={`flex justify-between items-baseline ${isFirst ? "pl-0 pr-1" : "px-1"} pt-0.5`}>
-                      {isFirst ? (
-                        <span className="text-[10px] font-bold leading-tight uppercase bg-muted-foreground/70 text-white px-0.5 py-[1px] rounded-r-sm">
-                          {getShortMonthName(date.getMonth())}
-                        </span>
-                      ) : (
-                        <span className="text-[9px] text-muted-foreground leading-tight">
-                          {DAY_ABBR[dayOfWeek]}
-                        </span>
-                      )}
-                      <span
-                        className={`text-xs font-medium leading-tight ${
-                          isToday ? "text-primary font-bold" : ""
-                        }`}
-                      >
-                        {date.getDate()}
-                      </span>
-                    </div>
-                    {/* Density dots at bottom center */}
-                    <div className="flex-1 flex items-end justify-center pb-0.5">
-                      <EventDensityIndicator count={count} />
-                    </div>
-                  </div>
-                );
-              })}
+      {yearGroups.map((group, groupIndex) => (
+        <div key={group.year}>
+          {/* Year label for 2nd+ groups */}
+          {groupIndex > 0 && (
+            <div className="flex justify-center py-4">
+              <span className="text-2xl font-bold">{group.year}</span>
             </div>
+          )}
+          {group.rows.map((rowDates, rowIndex) => {
+            const barInfo = group.segmentsByRow.get(rowIndex);
+            const visibleBars = barInfo?.visible ?? [];
+            const overflow = barInfo?.overflow ?? 0;
+            const maxLane =
+              visibleBars.length > 0
+                ? Math.max(...visibleBars.map((s) => s.lane))
+                : -1;
+            const barAreaHeight =
+              visibleBars.length > 0
+                ? (maxLane + 1) * (BAR_HEIGHT + BAR_GAP) +
+                  (overflow > 0 ? 14 : 0)
+                : 0;
 
-            {/* Bar area — only if this row has bars */}
-            {visibleBars.length > 0 && (
-              <div className="relative" style={{ height: barAreaHeight }}>
-                {visibleBars.map((seg, si) => {
-                  const left = (seg.startCol / cellsPerRow) * 100;
-                  const width =
-                    ((seg.endCol - seg.startCol + 1) / cellsPerRow) * 100;
-                  const top = seg.lane * (BAR_HEIGHT + BAR_GAP);
+            return (
+              <div key={rowIndex}>
+                {/* Day cells */}
+                <div className="flex">
+                  {rowDates.map((date) => {
+                    const dateStr = formatDateParam(date);
+                    const isToday = isSameDay(date, today);
+                    const isPast = isDateInPast(date);
+                    const isFirst = isFirstOfMonth(date);
+                    const count = eventCountByDate[dateStr] || 0;
+                    const dayOfWeek = date.getDay();
+                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-                  const roundedLeft = seg.isFirst
-                    ? "rounded-l-md"
-                    : "rounded-l-none";
-                  const roundedRight = seg.isLast
-                    ? "rounded-r-md"
-                    : "rounded-r-none";
+                    return (
+                      <div
+                        key={dateStr}
+                        ref={isToday ? todayRef : undefined}
+                        onClick={() => handleDayClick(date)}
+                        className={`flex flex-col flex-shrink-0 cursor-pointer rounded-md border border-border/40 transition-colors hover:bg-accent ${
+                          isToday
+                            ? "bg-primary/15 ring-1 ring-primary/40"
+                            : isWeekend
+                              ? "bg-black/[0.06] dark:bg-white/[0.06]"
+                              : ""
+                        } ${isPast && !isToday ? "opacity-50" : ""} ${isFirst ? "border-l-[3px] border-l-muted-foreground/60" : ""}`}
+                        style={{ width: CELL_WIDTH, height: CELL_HEIGHT }}
+                      >
+                        {/* Top line: day abbr (or month name) left, day number right */}
+                        <div className={`flex justify-between items-baseline ${isFirst ? "pl-0 pr-1" : "px-1"} pt-0.5`}>
+                          {isFirst ? (
+                            <span className="text-[10px] font-bold leading-tight uppercase bg-muted-foreground/70 text-white px-0.5 py-[1px] rounded-r-sm">
+                              {getShortMonthName(date.getMonth())}
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-muted-foreground leading-tight">
+                              {DAY_ABBR[dayOfWeek]}
+                            </span>
+                          )}
+                          <span
+                            className={`text-xs font-medium leading-tight ${
+                              isToday ? "text-primary font-bold" : ""
+                            }`}
+                          >
+                            {date.getDate()}
+                          </span>
+                        </div>
+                        {/* Density dots at bottom center */}
+                        <div className="flex-1 flex items-end justify-center pb-0.5">
+                          <EventDensityIndicator count={count} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
 
-                  return (
-                    <div
-                      key={`${seg.event.id}-${rowIndex}-${si}`}
-                      className={`absolute flex items-center overflow-hidden ${getFeaturedBarColor(seg.eventIndex)} ${roundedLeft} ${roundedRight}`}
-                      style={{
-                        left: `${left}%`,
-                        width: `${width}%`,
-                        top: `${top}px`,
-                        height: `${BAR_HEIGHT}px`,
-                      }}
-                    >
-                      {seg.isFirst && (
-                        <span className="truncate px-1.5 text-[10px] italic text-foreground/70">
-                          {seg.event.name}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-                {overflow > 0 && (
-                  <div
-                    className="absolute text-[9px] text-muted-foreground"
-                    style={{
-                      left: 0,
-                      top: `${MAX_VISIBLE_LANES * (BAR_HEIGHT + BAR_GAP)}px`,
-                    }}
-                  >
-                    +{overflow} more
+                {/* Bar area — only if this row has bars */}
+                {visibleBars.length > 0 && (
+                  <div className="relative" style={{ height: barAreaHeight }}>
+                    {visibleBars.map((seg, si) => {
+                      const left = (seg.startCol / cellsPerRow) * 100;
+                      const width =
+                        ((seg.endCol - seg.startCol + 1) / cellsPerRow) * 100;
+                      const top = seg.lane * (BAR_HEIGHT + BAR_GAP);
+
+                      const roundedLeft = seg.isFirst
+                        ? "rounded-l-md"
+                        : "rounded-l-none";
+                      const roundedRight = seg.isLast
+                        ? "rounded-r-md"
+                        : "rounded-r-none";
+
+                      return (
+                        <div
+                          key={`${seg.event.id}-${group.year}-${rowIndex}-${si}`}
+                          className={`absolute flex items-center overflow-hidden ${getFeaturedBarColor(seg.eventIndex)} ${roundedLeft} ${roundedRight}`}
+                          style={{
+                            left: `${left}%`,
+                            width: `${width}%`,
+                            top: `${top}px`,
+                            height: `${BAR_HEIGHT}px`,
+                          }}
+                        >
+                          {seg.isFirst && (
+                            <span className="truncate px-1.5 text-[10px] italic text-foreground/70">
+                              {seg.event.name}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {overflow > 0 && (
+                      <div
+                        className="absolute text-[9px] text-muted-foreground"
+                        style={{
+                          left: 0,
+                          top: `${MAX_VISIBLE_LANES * (BAR_HEIGHT + BAR_GAP)}px`,
+                        }}
+                      >
+                        +{overflow} more
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }

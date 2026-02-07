@@ -59,16 +59,14 @@ export default async function CalendarPage({ searchParams }: Props) {
 
   return (
     <div className="px-4 py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">{year} Events</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Click any day to view the week.
-        </p>
-      </div>
-      <div className="mb-4">
-        <Suspense>
-          <CategoryFilter />
-        </Suspense>
+      <div className="flex items-center mb-6">
+        <div className="flex-1" />
+        <h1 className="text-2xl font-bold">{year}</h1>
+        <div className="flex-1 flex justify-end">
+          <Suspense>
+            <CategoryFilter />
+          </Suspense>
+        </div>
       </div>
       <YearGrid
         dates={dateStrings}
