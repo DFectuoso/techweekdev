@@ -195,7 +195,7 @@ export function YearGrid({
                             : isWeekend
                               ? "bg-black/[0.06] dark:bg-white/[0.06]"
                               : ""
-                        } ${isPast && !isToday ? "opacity-30" : ""} ${isFirst ? "border-l-[3px] border-l-foreground/80" : ""}`}
+                        } ${isPast && !isToday ? "opacity-10" : ""} ${isFirst ? "border-l-[3px] border-l-foreground/80" : ""}`}
                         style={{ width: CELL_WIDTH, height: CELL_HEIGHT }}
                       >
                         {/* Month label — full-width bar flush to top, negative margins cover cell border */}

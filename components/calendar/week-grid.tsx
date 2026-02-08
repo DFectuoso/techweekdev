@@ -203,7 +203,7 @@ export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridPro
                 key={i}
                 className={`border-r border-border last:border-r-0 p-1.5 space-y-1.5 ${
                   isToday ? "bg-primary/5" : ""
-                } ${isPast && !isToday ? "opacity-30" : ""}`}
+                } ${isPast && !isToday ? "opacity-10" : ""}`}
               >
                 {dayEvents.length > 0 ? (
                   dayEvents.map((event) => (
