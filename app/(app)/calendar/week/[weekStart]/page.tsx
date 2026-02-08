@@ -88,7 +88,7 @@ export default async function WeekPage({ params, searchParams }: Props) {
       </div>
 
       <WeekGrid
-        weekStart={weekStart}
+        weekStartParam={weekParam}
         events={events}
         featuredEvents={filteredFeatured}
       />

@@ -6,20 +6,22 @@ import {
   getShortMonthName,
   isSameDay,
   isDateInPast,
+  parseDateParam,
 } from "@/lib/utils/date";
 import { getFeaturedBarColor } from "@/lib/utils/event-colors";
 import { WeekEventCard } from "./week-event-card";
 
 interface WeekGridProps {
-  weekStart: Date;
+  weekStartParam: string;
   events: Event[];
   featuredEvents: Event[];
 }
 
-export function WeekGrid({ weekStart, events, featuredEvents }: WeekGridProps) {
+export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridProps) {
+  const weekStart = parseDateParam(weekStartParam);
   const today = new Date();
 
-  // Generate 7 days starting from weekStart (Monday)
+  // Generate 7 days starting from weekStart
   const days = Array.from({ length: 7 }).map((_, i) => {
     const d = new Date(weekStart);
     d.setDate(d.getDate() + i);
