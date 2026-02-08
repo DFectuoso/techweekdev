@@ -11,6 +11,7 @@ const links = [
   { href: "/admin/events/new", label: "New Event" },
   { href: "/admin/events/import", label: "Import from URL" },
   { href: "/admin/newsletter", label: "Newsletter" },
+  { href: "/admin/marketing", label: "Marketing" },
 ];
 
 export function AdminSidebar() {
