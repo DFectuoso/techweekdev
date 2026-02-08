@@ -13,16 +13,16 @@ export function EventCard({ event }: EventCardProps) {
 
   return (
     <div
-      className={`rounded-lg border p-4 ${
+      className={`border p-4 ${
         event.isFeatured
-          ? "border-primary/50 bg-primary/5"
+          ? "border-primary/60 bg-primary/10"
           : "border-border bg-card"
       }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold truncate">{event.name}</h3>
+            <h3 className={`truncate ${event.isFeatured ? "font-bold" : "font-semibold"}`}>{event.name}</h3>
             {event.isFeatured && (
               <Badge className="bg-primary/10 text-primary text-[10px]">
                 Featured

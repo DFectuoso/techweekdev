@@ -22,7 +22,7 @@ export function EventDensityIndicator({ count }: EventDensityIndicatorProps) {
   const label = count === 1 ? "event" : "events";
 
   return (
-    <div className={`flex flex-col items-center rounded-md px-1 py-0.5 ${bg}`}>
+    <div className={`flex flex-col items-center px-1 py-0.5 ${bg}`}>
       <span className={`text-[11px] font-bold leading-none ${numColor}`}>
         {count}
       </span>

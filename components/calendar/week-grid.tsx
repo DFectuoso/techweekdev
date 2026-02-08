@@ -108,7 +108,7 @@ export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridPro
               const top = lane * (barHeight + barGap);
 
               const barColor = getFeaturedBarColor(bar.idx);
-              const barClass = `group absolute z-10 flex items-center rounded-md overflow-hidden hover:overflow-visible hover:z-20 ${barColor}`;
+              const barClass = `group absolute z-10 flex items-center overflow-hidden hover:overflow-visible hover:z-20 ${barColor}`;
               const barStyle = {
                 left: `${leftPct}%`,
                 width: `${widthPct}%`,
@@ -116,7 +116,7 @@ export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridPro
                 height: `${barHeight}px`,
               };
               const label = (
-                <span className={`whitespace-nowrap h-full flex items-center px-2 text-xs italic font-medium text-foreground/70 ${barColor} group-hover:pr-3 group-hover:rounded-r-md`}>
+                <span className={`whitespace-nowrap h-full flex items-center px-2 text-xs font-bold text-foreground/80 ${barColor} group-hover:pr-3`}>
                   {bar.event.name}
                 </span>
               );
@@ -189,7 +189,7 @@ export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridPro
                 key={i}
                 className={`border-r border-border last:border-r-0 p-1.5 space-y-1.5 ${
                   isToday ? "bg-primary/5" : ""
-                } ${isPast && !isToday ? "opacity-50" : ""}`}
+                } ${isPast && !isToday ? "opacity-30" : ""}`}
               >
                 {dayEvents.length > 0 ? (
                   dayEvents.map((event) => (

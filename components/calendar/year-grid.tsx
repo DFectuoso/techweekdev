@@ -189,26 +189,26 @@ export function YearGrid({
                         key={dateStr}
                         ref={isToday ? todayRef : undefined}
                         onClick={() => handleDayClick(date)}
-                        className={`flex flex-col flex-shrink-0 cursor-pointer rounded-md border border-border/40 transition-colors hover:bg-accent ${
+                        className={`flex flex-col flex-shrink-0 cursor-pointer border border-border/40 transition-colors hover:bg-accent ${
                           isToday
                             ? "bg-primary/15 ring-1 ring-primary/40"
                             : isWeekend
                               ? "bg-black/[0.06] dark:bg-white/[0.06]"
                               : ""
-                        } ${isPast && !isToday ? "opacity-50" : ""} ${isFirst ? "border-l-[3px] border-l-muted-foreground/60" : ""}`}
+                        } ${isPast && !isToday ? "opacity-30" : ""} ${isFirst ? "border-l-[3px] border-l-foreground/80" : ""}`}
                         style={{ width: CELL_WIDTH, height: CELL_HEIGHT }}
                       >
-                        {/* Top line: day abbr (or month name) left, day number right */}
-                        <div className={`flex justify-between items-baseline ${isFirst ? "pl-0 pr-1" : "px-1"} pt-0.5`}>
-                          {isFirst ? (
-                            <span className="text-[10px] font-bold leading-tight uppercase bg-muted-foreground/70 text-white px-0.5 py-[1px] rounded-r-sm">
-                              {getShortMonthName(date.getMonth())}
-                            </span>
-                          ) : (
-                            <span className="text-[9px] text-muted-foreground leading-tight">
-                              {DAY_ABBR[dayOfWeek]}
-                            </span>
-                          )}
+                        {/* Month label — full-width bar flush to top, negative margins cover cell border */}
+                        {isFirst && (
+                          <div className="-mt-px -ml-[3px] -mr-px w-[calc(100%+4px)] bg-foreground/80 text-background text-[10px] font-bold uppercase text-center leading-none py-[3px]">
+                            {getShortMonthName(date.getMonth())}
+                          </div>
+                        )}
+                        {/* Top line: day abbr left, day number right */}
+                        <div className={`flex justify-between items-baseline px-1 ${isFirst ? "pt-0" : "pt-0.5"}`}>
+                          <span className="text-[9px] text-muted-foreground leading-tight">
+                            {DAY_ABBR[dayOfWeek]}
+                          </span>
                           <span
                             className={`text-xs font-medium leading-tight ${
                               isToday ? "text-primary font-bold" : ""
@@ -233,14 +233,7 @@ export function YearGrid({
                   const bottom = BAR_BOTTOM_OFFSET + seg.lane * (BAR_HEIGHT + BAR_GAP);
                   const barColor = getFeaturedBarColor(seg.eventIndex);
 
-                  const roundedLeft = seg.isFirst
-                    ? "rounded-l-md"
-                    : "rounded-l-none";
-                  const roundedRight = seg.isLast
-                    ? "rounded-r-md"
-                    : "rounded-r-none";
-
-                  const barClass = `group absolute z-10 flex items-center overflow-hidden hover:overflow-visible hover:z-20 ${barColor} ${roundedLeft} ${roundedRight}`;
+                  const barClass = `group absolute z-10 flex items-center overflow-hidden hover:overflow-visible hover:z-20 ${barColor}`;
                   const barStyle = {
                     left: `${left}px`,
                     width: `${width}px`,
@@ -248,7 +241,7 @@ export function YearGrid({
                     height: `${BAR_HEIGHT}px`,
                   };
                   const label = seg.isFirst ? (
-                    <span className={`whitespace-nowrap h-full flex items-center px-1.5 text-[10px] italic text-foreground/70 ${barColor} group-hover:pr-2 group-hover:rounded-r-md`}>
+                    <span className={`whitespace-nowrap h-full flex items-center px-1.5 text-[10px] font-bold text-foreground/80 ${barColor} group-hover:pr-2`}>
                       {seg.event.name}
                     </span>
                   ) : null;

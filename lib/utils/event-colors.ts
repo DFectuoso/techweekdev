@@ -16,12 +16,12 @@ export const typeColors: Record<string, string> = {
 };
 
 const featuredBarColors = [
-  "bg-rose-200 dark:bg-rose-800",
-  "bg-sky-200 dark:bg-sky-800",
-  "bg-amber-200 dark:bg-amber-800",
-  "bg-emerald-200 dark:bg-emerald-800",
-  "bg-violet-200 dark:bg-violet-800",
-  "bg-fuchsia-200 dark:bg-fuchsia-800",
+  "bg-rose-300 dark:bg-rose-700",
+  "bg-sky-300 dark:bg-sky-700",
+  "bg-amber-300 dark:bg-amber-700",
+  "bg-emerald-300 dark:bg-emerald-700",
+  "bg-violet-300 dark:bg-violet-700",
+  "bg-fuchsia-300 dark:bg-fuchsia-700",
 ];
 
 export function getFeaturedBarColor(index: number): string {

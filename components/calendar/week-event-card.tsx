@@ -15,15 +15,15 @@ export function WeekEventCard({ event }: WeekEventCardProps) {
   const h12 = hours % 12 || 12;
   const timeStr = `${h12}:${String(minutes).padStart(2, "0")} ${ampm}`;
 
-  const className = `block w-full text-left rounded-lg border p-3 transition-colors hover:bg-accent/50 ${
+  const className = `block w-full text-left border p-3 transition-colors hover:bg-accent/50 ${
     event.isFeatured
-      ? "border-primary/50 bg-primary/5"
+      ? "border-primary/60 bg-primary/10"
       : "border-border bg-card"
   }`;
 
   const content = (
     <>
-      <h4 className="text-sm font-semibold line-clamp-2">{event.name}</h4>
+      <h4 className={`text-sm line-clamp-2 ${event.isFeatured ? "font-bold" : "font-semibold"}`}>{event.name}</h4>
       <p className="mt-0.5 text-xs text-muted-foreground">{timeStr}</p>
       <div className="mt-1.5 flex items-center gap-1.5">
         {event.eventType && (
