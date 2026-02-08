@@ -28,12 +28,26 @@ export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridPro
     return d;
   });
 
-  // Group events by day
+  // Group events by day, distributing multi-day events across all days they span
   const eventsByDay: Record<string, Event[]> = {};
+  const weekEnd = days[6]!;
   for (const event of events) {
-    const key = new Date(event.startDate).toDateString();
-    if (!eventsByDay[key]) eventsByDay[key] = [];
-    eventsByDay[key]!.push(event);
+    const es = new Date(event.startDate);
+    const ee = event.endDate ? new Date(event.endDate) : es;
+    // Normalize to midnight for day-level comparison
+    const startDay = new Date(es.getFullYear(), es.getMonth(), es.getDate());
+    const endDay = new Date(ee.getFullYear(), ee.getMonth(), ee.getDate());
+    // Clamp to visible week range
+    const effectiveStart = startDay > days[0]! ? startDay : days[0]!;
+    const effectiveEnd = endDay < weekEnd ? endDay : weekEnd;
+    // Add event to each day it covers within the week
+    for (const day of days) {
+      if (day >= effectiveStart && day <= effectiveEnd) {
+        const key = day.toDateString();
+        if (!eventsByDay[key]) eventsByDay[key] = [];
+        eventsByDay[key]!.push(event);
+      }
+    }
   }
 
   // Sort each day's events by start time

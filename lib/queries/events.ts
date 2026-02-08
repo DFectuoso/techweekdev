@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { events } from "@/lib/db/schema";
-import { and, gte, lte, eq, asc, desc, inArray, type SQL } from "drizzle-orm";
+import { and, or, gte, lte, eq, asc, desc, inArray, isNull, type SQL } from "drizzle-orm";
 import type { EventType, Region, Event } from "@/lib/db/schema";
 
 export async function getEventsBetween(
@@ -9,8 +9,11 @@ export async function getEventsBetween(
   filters?: { eventType?: EventType; region?: Region }
 ): Promise<Event[]> {
   const conditions: SQL[] = [
-    gte(events.startDate, start),
     lte(events.startDate, end),
+    or(
+      and(isNull(events.endDate), gte(events.startDate, start)),
+      gte(events.endDate, start)
+    )!,
   ];
 
   if (filters?.eventType) {
@@ -36,8 +39,11 @@ export async function getFeaturedEvents(
     .from(events)
     .where(
       and(
-        gte(events.startDate, start),
         lte(events.startDate, end),
+        or(
+          and(isNull(events.endDate), gte(events.startDate, start)),
+          gte(events.endDate, start)
+        ),
         eq(events.isFeatured, true)
       )
     )
@@ -60,8 +66,11 @@ export async function getEventsBetweenFiltered(
   eventTypes?: EventType[]
 ): Promise<Event[]> {
   const conditions: SQL[] = [
-    gte(events.startDate, start),
     lte(events.startDate, end),
+    or(
+      and(isNull(events.endDate), gte(events.startDate, start)),
+      gte(events.endDate, start)
+    )!,
   ];
 
   if (eventTypes && eventTypes.length > 0) {

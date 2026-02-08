@@ -50,12 +50,18 @@ export default async function CalendarPage({ searchParams }: Props) {
   const dates = generateDateRange(year, currentMonth, 12);
   const dateStrings = dates.map((d) => formatDateParam(d));
 
-  // Count events per date
+  // Count events per date, distributing multi-day events across all days they span
   const eventCountByDate: Record<string, number> = {};
   for (const event of allEvents) {
-    const d = new Date(event.startDate);
-    const key = formatDateParam(d);
-    eventCountByDate[key] = (eventCountByDate[key] || 0) + 1;
+    const s = new Date(event.startDate);
+    const e = event.endDate ? new Date(event.endDate) : s;
+    const current = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+    const endDay = new Date(e.getFullYear(), e.getMonth(), e.getDate());
+    while (current <= endDay) {
+      const key = formatDateParam(current);
+      eventCountByDate[key] = (eventCountByDate[key] || 0) + 1;
+      current.setDate(current.getDate() + 1);
+    }
   }
 
   // Filter featured events to only those in range
