@@ -18,6 +18,7 @@ import {
   type BarSegment,
 } from "@/lib/utils/year-grid-layout";
 import { EventDensityIndicator } from "./event-density-indicator";
+import { trackEventClick } from "@/lib/utils/track";
 
 const CELL_WIDTH = 58;
 const CELL_HEIGHT = 100;
@@ -257,7 +258,7 @@ export function YearGrid({
                       href={seg.event.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); trackEventClick(seg.event.id, "year-grid"); }}
                       className={`${barClass} hover:opacity-90 transition-opacity`}
                       style={barStyle}
                     >

@@ -10,6 +10,7 @@ import {
 } from "@/lib/utils/date";
 import { getFeaturedBarColor } from "@/lib/utils/event-colors";
 import { WeekEventCard } from "./week-event-card";
+import { trackEventClick } from "@/lib/utils/track";
 
 interface WeekGridProps {
   weekStartParam: string;
@@ -138,6 +139,7 @@ export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridPro
             href={bar.event.website}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => trackEventClick(bar.event.id, "week-grid")}
             className={`${barClass} hover:opacity-90 transition-opacity`}
             style={barStyle}
           >
@@ -179,6 +181,7 @@ export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridPro
                   href={bar.event.website}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => trackEventClick(bar.event.id, "week-grid")}
                   className="block hover:opacity-90 transition-opacity"
                 >
                   {content}

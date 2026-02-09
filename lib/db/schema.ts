@@ -143,6 +143,26 @@ export const eventSuggestions = sqliteTable("event_suggestion", {
     .$defaultFn(() => new Date()),
 });
 
+// ── Event Clicks (analytics) ─────────────────────────────────────
+export const eventClicks = sqliteTable("event_click", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  eventId: text("eventId").notNull().references(() => events.id, { onDelete: "cascade" }),
+  source: text("source").notNull(),
+  clickedAt: integer("clickedAt", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+});
+
+export type EventClick = typeof eventClicks.$inferSelect;
+
+// ── Page Views (analytics) ───────────────────────────────────────
+export const pageViews = sqliteTable("page_view", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  path: text("path").notNull(),
+  userId: text("userId").references(() => users.id, { onDelete: "set null" }),
+  viewedAt: integer("viewedAt", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),
+});
+
+export type PageView = typeof pageViews.$inferSelect;
+
 // ── Type exports ────────────────────────────────────────────────────
 export type User = typeof users.$inferSelect;
 export type Event = typeof events.$inferSelect;

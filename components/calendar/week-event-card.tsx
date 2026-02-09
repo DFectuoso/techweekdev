@@ -2,6 +2,7 @@
 
 import type { Event } from "@/lib/db/schema";
 import { typeColors } from "@/lib/utils/event-colors";
+import { trackEventClick } from "@/lib/utils/track";
 
 interface WeekEventCardProps {
   event: Event;
@@ -50,6 +51,7 @@ export function WeekEventCard({ event }: WeekEventCardProps) {
         href={event.website}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => trackEventClick(event.id, "week-card")}
         className={className}
       >
         {content}
