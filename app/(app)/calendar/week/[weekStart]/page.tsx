@@ -75,13 +75,13 @@ export default async function WeekPage({ params, searchParams }: Props) {
         nextLabel="Next week"
       />
 
-      <h1 className="text-2xl font-bold mb-4">
-        Week of {getShortMonthName(weekStart.getMonth())} {weekStart.getDate()}{" "}
-        &ndash; {getShortMonthName(weekEnd.getMonth())} {weekEnd.getDate()},{" "}
-        {weekEnd.getFullYear()}
-      </h1>
-
-      <div className="mb-4">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl sm:text-2xl font-bold">
+          <span className="hidden sm:inline">Week of </span>
+          {getShortMonthName(weekStart.getMonth())} {weekStart.getDate()}{" "}
+          &ndash; {getShortMonthName(weekEnd.getMonth())} {weekEnd.getDate()},{" "}
+          {weekEnd.getFullYear()}
+        </h1>
         <Suspense>
           <CategoryFilter />
         </Suspense>

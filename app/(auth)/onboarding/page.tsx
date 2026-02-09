@@ -12,7 +12,7 @@ export default async function OnboardingPage() {
     redirect("/login");
   }
 
-  const isSubscribed = await getUserNewsletterStatus(session.user.id);
+  const isSubscribed = await getUserNewsletterStatus(session.user.id).catch(() => false);
 
   if (isSubscribed) {
     redirect("/calendar");

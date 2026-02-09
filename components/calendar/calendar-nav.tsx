@@ -17,7 +17,7 @@ export function CalendarNav({
 }: CalendarNavProps) {
   return (
     <div className="flex items-center justify-between mb-6">
-      <nav className="flex items-center gap-1.5 text-sm">
+      <nav className="hidden sm:flex items-center gap-1.5 text-sm">
         {breadcrumbs.map((crumb, i) => (
           <span key={i} className="flex items-center gap-1.5">
             {i > 0 && <span className="text-muted-foreground">/</span>}

@@ -19,7 +19,7 @@ export function AppHeader() {
           >
             TechWeek
           </Link>
-          <nav className="hidden sm:flex items-center gap-4">
+          <nav className="flex items-center gap-2 sm:gap-4">
             <Link
               href="/calendar"
               className="text-sm font-medium text-muted-foreground hover:text-foreground"

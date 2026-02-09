@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { EVENT_TYPES, type EventType } from "@/lib/db/schema";
 import { typeColors } from "@/lib/utils/event-colors";
 
@@ -9,6 +9,8 @@ export function CategoryFilter() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const activeTypes = (searchParams.get("types") || "")
     .split(",")
@@ -41,35 +43,83 @@ export function CategoryFilter() {
     router.push(qs ? `${pathname}?${qs}` : pathname);
   }, [pathname, router, searchParams]);
 
+  // Close on click outside
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
   const isFiltering = activeTypes.length > 0;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {isFiltering && (
-        <button
-          onClick={clearAll}
-          className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-accent transition-colors"
+    <div ref={containerRef} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+          isFiltering
+            ? "border-primary/40 bg-primary/10 text-foreground"
+            : "border-border text-muted-foreground hover:bg-accent"
+        }`}
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          className="shrink-0"
         >
-          All
-        </button>
+          <path
+            d="M2 4h12M4 8h8M6 12h4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+        Filter
+        {isFiltering && (
+          <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+            {activeTypes.length}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-border bg-card p-3 shadow-lg">
+          <div className="flex flex-wrap gap-2">
+            {isFiltering && (
+              <button
+                onClick={clearAll}
+                className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-accent transition-colors"
+              >
+                Clear all
+              </button>
+            )}
+            {EVENT_TYPES.map((type) => {
+              const active = activeTypes.includes(type);
+              const colors = typeColors[type] || typeColors.other;
+              return (
+                <button
+                  key={type}
+                  onClick={() => toggle(type)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    active
+                      ? colors
+                      : "border border-border text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  {type}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
-      {EVENT_TYPES.map((type) => {
-        const active = activeTypes.includes(type);
-        const colors = typeColors[type] || typeColors.other;
-        return (
-          <button
-            key={type}
-            onClick={() => toggle(type)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              active
-                ? colors
-                : "border border-border text-muted-foreground hover:bg-accent"
-            }`}
-          >
-            {type}
-          </button>
-        );
-      })}
     </div>
   );
 }

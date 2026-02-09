@@ -43,6 +43,7 @@ export function YearGrid({
   const containerRef = useRef<HTMLDivElement>(null);
   const todayRef = useRef<HTMLDivElement>(null);
   const [cellsPerRow, setCellsPerRow] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   const parsedDates = useMemo(() => dates.map((d) => new Date(d)), [dates]);
   const today = useMemo(() => new Date(), []);
@@ -54,6 +55,7 @@ export function YearGrid({
     const width = container.clientWidth;
     const count = Math.max(1, Math.floor(width / CELL_WIDTH));
     setCellsPerRow(count);
+    setContainerWidth(width);
   }, []);
 
   useEffect(() => {
@@ -144,6 +146,9 @@ export function YearGrid({
     });
   }, [parsedDates, cellsPerRow, featuredEvents]);
 
+  // Actual cell width when cells stretch to fill the container
+  const actualCellWidth = cellsPerRow > 0 ? containerWidth / cellsPerRow : CELL_WIDTH;
+
   const handleDayClick = useCallback(
     (date: Date) => {
       const weekStart = getWeekStart(date);
@@ -196,7 +201,7 @@ export function YearGrid({
                               ? "bg-black/[0.06] dark:bg-white/[0.06]"
                               : ""
                         } ${isPast && !isToday ? "opacity-10" : ""} ${isFirst ? "border-l-[3px] border-l-foreground/80" : ""}`}
-                        style={{ width: CELL_WIDTH, height: CELL_HEIGHT }}
+                        style={{ flex: "1 1 0%", minWidth: 0, height: CELL_HEIGHT }}
                       >
                         {/* Month label — full-width bar flush to top, negative margins cover cell border */}
                         {isFirst && (
@@ -228,8 +233,8 @@ export function YearGrid({
 
                 {/* Featured bars overlaid at bottom of cells */}
                 {visibleBars.map((seg, si) => {
-                  const left = seg.startCol * CELL_WIDTH;
-                  const width = (seg.endCol - seg.startCol + 1) * CELL_WIDTH;
+                  const left = seg.startCol * actualCellWidth;
+                  const width = (seg.endCol - seg.startCol + 1) * actualCellWidth;
                   const bottom = BAR_BOTTOM_OFFSET + seg.lane * (BAR_HEIGHT + BAR_GAP);
                   const barColor = getFeaturedBarColor(seg.eventIndex);
 

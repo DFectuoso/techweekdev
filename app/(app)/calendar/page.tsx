@@ -43,7 +43,7 @@ export default async function CalendarPage({ searchParams }: Props) {
   const [allEvents, featuredEvents, newsletterOptIn] = await Promise.all([
     getEventsBetweenFiltered(start, end, eventTypes.length > 0 ? eventTypes : undefined),
     getFeaturedEvents(start, end),
-    session?.user?.id ? getUserNewsletterStatus(session.user.id) : Promise.resolve(true),
+    session?.user?.id ? getUserNewsletterStatus(session.user.id).catch(() => true) : Promise.resolve(true),
   ]);
 
   // Generate date range for 12 months
@@ -71,11 +71,10 @@ export default async function CalendarPage({ searchParams }: Props) {
   });
 
   return (
-    <div className="px-4 py-6">
-      <div className="flex items-center mb-6">
-        <div className="flex-1" />
+    <div className="py-6 sm:px-4">
+      <div className="relative mb-6 flex items-center justify-center px-4 sm:px-0">
         <h1 className="text-2xl font-bold">{year}</h1>
-        <div className="flex-1 flex justify-end">
+        <div className="absolute right-4 sm:right-0">
           <Suspense>
             <CategoryFilter />
           </Suspense>
