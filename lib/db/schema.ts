@@ -3,6 +3,7 @@ import {
   text,
   integer,
   primaryKey,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
 // ── Users (extends Auth.js defaults) ────────────────────────────────
@@ -90,28 +91,35 @@ export const REGIONS = [
 export type EventType = (typeof EVENT_TYPES)[number];
 export type Region = (typeof REGIONS)[number];
 
-export const events = sqliteTable("event", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  name: text("name").notNull(),
-  description: text("description"),
-  website: text("website"),
-  price: text("price"),
-  startDate: integer("startDate", { mode: "timestamp_ms" }).notNull(),
-  endDate: integer("endDate", { mode: "timestamp_ms" }),
-  isFeatured: integer("isFeatured", { mode: "boolean" })
-    .notNull()
-    .default(false),
-  eventType: text("eventType").$type<EventType>(),
-  region: text("region").$type<Region>(),
-  createdAt: integer("createdAt", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-  updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+export const events = sqliteTable(
+  "event",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    name: text("name").notNull(),
+    description: text("description"),
+    website: text("website"),
+    normalizedWebsite: text("normalizedWebsite"),
+    price: text("price"),
+    startDate: integer("startDate", { mode: "timestamp_ms" }).notNull(),
+    endDate: integer("endDate", { mode: "timestamp_ms" }),
+    isFeatured: integer("isFeatured", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    eventType: text("eventType").$type<EventType>(),
+    region: text("region").$type<Region>(),
+    createdAt: integer("createdAt", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("event_normalizedWebsite_unique").on(table.normalizedWebsite),
+  ]
+);
 
 // ── Event Suggestions ──────────────────────────────────────────────
 export const SUGGESTION_STATUSES = ["pending", "approved", "rejected"] as const;

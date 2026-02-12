@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { events } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { normalizeUrl } from "@/lib/utils/normalize-url";
+import { findDuplicate } from "@/lib/queries/duplicates";
 
 interface Context {
   params: Promise<{ id: string }>;
@@ -45,6 +47,7 @@ export async function PUT(request: Request, context: Context) {
     isFeatured,
     eventType,
     region,
+    force,
   } = body;
 
   if (!name || !startDate) {
@@ -54,12 +57,33 @@ export async function PUT(request: Request, context: Context) {
     );
   }
 
+  const normalizedWebsite = normalizeUrl(website);
+
+  if (website && !force) {
+    const existing = await findDuplicate({ website, excludeId: id });
+    if (existing) {
+      return NextResponse.json(
+        {
+          error: "Duplicate event",
+          existingEvent: {
+            id: existing.id,
+            name: existing.name,
+            website: existing.website,
+            startDate: existing.startDate,
+          },
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   const [updated] = await db
     .update(events)
     .set({
       name,
       description: description || null,
       website: website || null,
+      normalizedWebsite: normalizedWebsite,
       price: price || null,
       startDate: new Date(startDate),
       endDate: endDate ? new Date(endDate) : null,

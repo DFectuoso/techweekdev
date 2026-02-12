@@ -6,6 +6,7 @@ import type {
   NewEventSuggestion,
   EventSuggestion,
 } from "@/lib/db/schema";
+import { normalizeUrl } from "@/lib/utils/normalize-url";
 
 export async function getSuggestions(
   status?: SuggestionStatus
@@ -75,6 +76,7 @@ export async function approveSuggestion(
     name: suggestion.name,
     description: suggestion.description,
     website: suggestion.website,
+    normalizedWebsite: normalizeUrl(suggestion.website),
     price: suggestion.price,
     startDate: suggestion.startDate,
     endDate: suggestion.endDate,

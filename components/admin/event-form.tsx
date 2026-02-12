@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,32 +23,41 @@ function toDatetimeLocal(date: Date): string {
 
 export function EventForm({ event }: EventFormProps) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [duplicateWarning, setDuplicateWarning] = useState<{
+    name: string;
+  } | null>(null);
 
   const isEdit = !!event;
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function submitForm(force: boolean) {
+    const form = formRef.current;
+    if (!form) return;
+
     setError("");
+    setDuplicateWarning(null);
     setSaving(true);
 
-    const form = new FormData(e.currentTarget);
-    const body = {
-      name: form.get("name"),
-      description: form.get("description"),
-      website: form.get("website"),
-      price: form.get("price"),
-      startDate: form.get("startDate")
-        ? new Date(form.get("startDate") as string).toISOString()
+    const fd = new FormData(form);
+    const body: Record<string, unknown> = {
+      name: fd.get("name"),
+      description: fd.get("description"),
+      website: fd.get("website"),
+      price: fd.get("price"),
+      startDate: fd.get("startDate")
+        ? new Date(fd.get("startDate") as string).toISOString()
         : null,
-      endDate: form.get("endDate")
-        ? new Date(form.get("endDate") as string).toISOString()
+      endDate: fd.get("endDate")
+        ? new Date(fd.get("endDate") as string).toISOString()
         : null,
-      isFeatured: form.get("isFeatured") === "on",
-      eventType: form.get("eventType") || null,
-      region: form.get("region") || null,
+      isFeatured: fd.get("isFeatured") === "on",
+      eventType: fd.get("eventType") || null,
+      region: fd.get("region") || null,
     };
+
+    if (force) body.force = true;
 
     const url = isEdit ? `/api/admin/events/${event.id}` : "/api/admin/events";
     const method = isEdit ? "PUT" : "POST";
@@ -61,6 +70,11 @@ export function EventForm({ event }: EventFormProps) {
 
     if (!res.ok) {
       const data = await res.json();
+      if (res.status === 409 && data.existingEvent) {
+        setDuplicateWarning({ name: data.existingEvent.name });
+        setSaving(false);
+        return;
+      }
       setError(data.error || "Something went wrong");
       setSaving(false);
       return;
@@ -70,12 +84,35 @@ export function EventForm({ event }: EventFormProps) {
     router.refresh();
   }
 
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    submitForm(false);
+  }
+
   const typeOptions = EVENT_TYPES.map((t) => ({ value: t, label: t }));
   const regionOptions = REGIONS.map((r) => ({ value: r, label: r }));
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-xl space-y-4">
+    <form ref={formRef} onSubmit={handleSubmit} className="max-w-xl space-y-4">
       {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {duplicateWarning && (
+        <div className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm dark:border-yellow-700 dark:bg-yellow-950">
+          <p className="text-yellow-800 dark:text-yellow-200">
+            An event with this URL already exists: <strong>{duplicateWarning.name}</strong>
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            disabled={saving}
+            onClick={() => submitForm(true)}
+          >
+            {isEdit ? "Update Anyway" : "Create Anyway"}
+          </Button>
+        </div>
+      )}
 
       <Input
         id="name"

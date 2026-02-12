@@ -2,8 +2,30 @@
 
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { useInAppBrowser } from "@/lib/hooks/use-in-app-browser";
+import { openInSystemBrowser } from "@/lib/utils/in-app-browser";
 
 export function GoogleButton() {
+  const isInApp = useInAppBrowser();
+
+  if (isInApp) {
+    return (
+      <div className="rounded-lg border border-border bg-muted/50 p-4 text-center space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Google sign-in is not available in this browser. Use email and
+          password below, or open this page in Safari/Chrome.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={openInSystemBrowser}
+        >
+          Open in browser
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <Button
       variant="outline"

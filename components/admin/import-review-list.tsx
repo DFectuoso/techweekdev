@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +15,13 @@ interface ImportReviewListProps {
   events: ExtractedEvent[];
   sourceUrl: string;
   onReset: () => void;
+}
+
+interface DuplicateInfo {
+  id: string;
+  name: string;
+  website: string | null;
+  startDate: string | number | null;
 }
 
 function toDatetimeLocal(dateStr: string): string {
@@ -63,6 +70,62 @@ export function ImportReviewList({
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
+  const [duplicates, setDuplicates] = useState<Map<string, DuplicateInfo>>(
+    () => new Map()
+  );
+  const [checking, setChecking] = useState(false);
+
+  // Pre-check for duplicates on mount
+  useEffect(() => {
+    async function checkDuplicates() {
+      const eventsWithUrls = events.filter((e) => e.website);
+      if (eventsWithUrls.length === 0) return;
+
+      setChecking(true);
+      try {
+        const res = await fetch("/api/admin/events/check-duplicates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            events: events.map((e) => ({ website: e.website })),
+          }),
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const dupeMap = new Map<string, DuplicateInfo>();
+        const toDeselect = new Set<string>();
+
+        for (const result of data.results) {
+          if (result.existingEvent) {
+            const evt = events[result.index];
+            if (evt) {
+              dupeMap.set(evt._tempId, result.existingEvent);
+              toDeselect.add(evt._tempId);
+            }
+          }
+        }
+
+        setDuplicates(dupeMap);
+
+        // Auto-deselect duplicates
+        if (toDeselect.size > 0) {
+          setSelected((prev) => {
+            const next = new Set(prev);
+            for (const id of toDeselect) {
+              next.delete(id);
+            }
+            return next;
+          });
+        }
+      } finally {
+        setChecking(false);
+      }
+    }
+
+    checkDuplicates();
+  }, [events]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -103,7 +166,8 @@ export function ImportReviewList({
 
     for (let i = 0; i < toImport.length; i++) {
       const evt = toImport[i];
-      const body = {
+      const isDuplicate = duplicates.has(evt._tempId);
+      const body: Record<string, unknown> = {
         name: evt.name,
         description: evt.description,
         website: evt.website,
@@ -114,6 +178,11 @@ export function ImportReviewList({
         eventType: evt.eventType,
         region: evt.region,
       };
+
+      // If this event was flagged as duplicate but kept selected, force it
+      if (isDuplicate) {
+        body.force = true;
+      }
 
       const res = await fetch("/api/admin/events", {
         method: "POST",
@@ -147,8 +216,18 @@ export function ImportReviewList({
           <span className="text-sm text-muted-foreground">
             {events.length} events found
           </span>
+          {duplicates.size > 0 && (
+            <span className="text-sm text-yellow-600">
+              {duplicates.size} duplicate{duplicates.size !== 1 ? "s" : ""} found
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3">
+          {checking && (
+            <span className="text-sm text-muted-foreground">
+              Checking for duplicates...
+            </span>
+          )}
           {importing && (
             <span className="text-sm text-muted-foreground">
               Importing {progress}/{selected.size}...
@@ -156,7 +235,7 @@ export function ImportReviewList({
           )}
           <Button
             onClick={handleImport}
-            disabled={importing || selected.size === 0}
+            disabled={importing || checking || selected.size === 0}
           >
             {importing
               ? `Importing (${progress}/${selected.size})...`
@@ -187,6 +266,7 @@ export function ImportReviewList({
               <th className="p-3 text-left">Date</th>
               <th className="p-3 text-left">Type</th>
               <th className="p-3 text-left">Price</th>
+              <th className="p-3 text-left">Status</th>
               <th className="p-3 text-left">Confidence</th>
               <th className="p-3 text-left w-16"></th>
             </tr>
@@ -194,6 +274,7 @@ export function ImportReviewList({
           <tbody>
             {events.map((raw) => {
               const evt = getEvent(raw._tempId);
+              const dupeInfo = duplicates.get(raw._tempId);
               return (
                 <tr
                   key={raw._tempId}
@@ -232,6 +313,18 @@ export function ImportReviewList({
                   </td>
                   <td className="p-3 text-muted-foreground">
                     {evt.price || "—"}
+                  </td>
+                  <td className="p-3">
+                    {dupeInfo ? (
+                      <Badge
+                        variant="secondary"
+                        className="border-yellow-300 bg-yellow-50 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200"
+                      >
+                        Already exists
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">New</span>
+                    )}
                   </td>
                   <td className="p-3">
                     <span className={confidenceColor(evt._confidence)}>
