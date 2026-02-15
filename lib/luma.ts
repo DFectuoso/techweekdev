@@ -263,7 +263,7 @@ function parseLumaCalendarPage(
 
 function parseLumaJsonLdListing(html: string): ExtractedEvent[] | null {
   const regex =
-    /<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/g;
+    /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g;
   let jsonLdMatch: RegExpExecArray | null;
   const results: ExtractedEvent[] = [];
 
@@ -365,7 +365,7 @@ function parseLumaEventPage(
 ): ExtractedEvent | null {
   // Find all JSON-LD blocks and look for @type: "Event"
   const regex =
-    /<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/g;
+    /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g;
   let jsonLdMatch: RegExpExecArray | null;
 
   while ((jsonLdMatch = regex.exec(html)) !== null) {
