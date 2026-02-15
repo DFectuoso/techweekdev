@@ -33,12 +33,14 @@ interface YearGridProps {
   dates: string[]; // ISO date strings
   eventCountByDate: Record<string, number>;
   featuredEvents: Event[];
+  previewMode?: boolean;
 }
 
 export function YearGrid({
   dates,
   eventCountByDate,
   featuredEvents,
+  previewMode = false,
 }: YearGridProps) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -81,11 +83,12 @@ export function YearGrid({
 
   // Auto-scroll to today on mount
   useEffect(() => {
+    if (previewMode) return;
     const timer = setTimeout(() => {
       todayRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
     }, 150);
     return () => clearTimeout(timer);
-  }, []);
+  }, [previewMode]);
 
   // Split dates into per-year groups
   type YearGroup = {
@@ -152,10 +155,11 @@ export function YearGrid({
 
   const handleDayClick = useCallback(
     (date: Date) => {
+      if (previewMode) return;
       const weekStart = getWeekStart(date);
       router.push(`/calendar/week/${formatDateParam(weekStart)}`);
     },
-    [router]
+    [previewMode, router]
   );
 
   if (cellsPerRow === 0) {
@@ -164,7 +168,7 @@ export function YearGrid({
   }
 
   return (
-    <div ref={containerRef}>
+    <div ref={containerRef} className={previewMode ? "pointer-events-none select-none" : ""}>
       {yearGroups.map((group, groupIndex) => (
         <div key={group.year}>
           {/* Year label for 2nd+ groups */}
@@ -195,7 +199,9 @@ export function YearGrid({
                         key={dateStr}
                         ref={isToday ? todayRef : undefined}
                         onClick={() => handleDayClick(date)}
-                        className={`flex flex-col flex-shrink-0 cursor-pointer border border-border/40 transition-colors hover:bg-accent ${
+                        className={`flex flex-col flex-shrink-0 border border-border/40 transition-colors ${
+                          previewMode ? "" : "cursor-pointer hover:bg-accent"
+                        } ${
                           isToday
                             ? "bg-primary/15 ring-1 ring-primary/40"
                             : isWeekend
@@ -248,11 +254,12 @@ export function YearGrid({
                   };
                   const label = seg.isFirst ? (
                     <span className={`whitespace-nowrap h-full flex items-center px-1.5 text-[10px] font-bold text-foreground/80 ${barColor} group-hover:pr-2`}>
-                      {seg.event.name}
+                      {previewMode ? `Featured event #${seg.eventIndex + 1}` : seg.event.name}
                     </span>
                   ) : null;
+                  const canLink = !previewMode && !!seg.event.website;
 
-                  return seg.event.website ? (
+                  return canLink ? (
                     <a
                       key={`${seg.event.id}-${group.year}-${rowIndex}-${si}`}
                       href={seg.event.website}

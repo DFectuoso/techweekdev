@@ -68,21 +68,39 @@ export async function POST(request: Request) {
     }
   }
 
-  const [created] = await db
-    .insert(events)
-    .values({
-      name,
-      description: description || null,
-      website: website || null,
-      normalizedWebsite: normalizedWebsite,
-      price: price || null,
-      startDate: new Date(startDate),
-      endDate: endDate ? new Date(endDate) : null,
-      isFeatured: !!isFeatured,
-      eventType: eventType || null,
-      region: region || null,
-    })
-    .returning();
+  try {
+    const [created] = await db
+      .insert(events)
+      .values({
+        name,
+        description: description || null,
+        website: website || null,
+        normalizedWebsite: normalizedWebsite,
+        price: price || null,
+        startDate: new Date(startDate),
+        endDate: endDate ? new Date(endDate) : null,
+        isFeatured: !!isFeatured,
+        eventType: eventType || null,
+        region: region || null,
+      })
+      .returning();
 
-  return NextResponse.json(created, { status: 201 });
+    return NextResponse.json(created, { status: 201 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (
+      message.includes("UNIQUE constraint failed") ||
+      message.includes("event_normalizedWebsite_unique")
+    ) {
+      return NextResponse.json(
+        { error: "Duplicate event URL" },
+        { status: 409 }
+      );
+    }
+    console.error("Create event error:", error);
+    return NextResponse.json(
+      { error: "Failed to create event" },
+      { status: 500 }
+    );
+  }
 }

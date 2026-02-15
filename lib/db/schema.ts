@@ -171,6 +171,27 @@ export const pageViews = sqliteTable("page_view", {
 
 export type PageView = typeof pageViews.$inferSelect;
 
+// ── Rejected Import URLs ────────────────────────────────────────────
+export const rejectedImportUrls = sqliteTable(
+  "rejected_import_url",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    url: text("url").notNull(),
+    normalizedUrl: text("normalizedUrl").notNull(),
+    eventName: text("eventName"),
+    rejectedAt: integer("rejectedAt", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("rejected_import_url_normalizedUrl_unique").on(
+      table.normalizedUrl
+    ),
+  ]
+);
+
 // ── Type exports ────────────────────────────────────────────────────
 export type User = typeof users.$inferSelect;
 export type Event = typeof events.$inferSelect;

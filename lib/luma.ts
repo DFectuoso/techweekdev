@@ -58,6 +58,52 @@ function stripTimezoneOffset(iso: string): string {
     .replace(/[+-]\d{2}:\d{2}$/, "");
 }
 
+function resolveLumaImage(raw: unknown): string | null {
+  if (typeof raw === "string" && raw.startsWith("http")) {
+    return raw;
+  }
+  if (typeof raw === "object" && raw !== null) {
+    const maybeUrl = (raw as { url?: unknown }).url;
+    if (typeof maybeUrl === "string" && maybeUrl.startsWith("http")) {
+      return maybeUrl;
+    }
+  }
+  return null;
+}
+
+function extractLumaImage(e: Record<string, unknown>): string | null {
+  return (
+    resolveLumaImage(e.cover_url) ||
+    resolveLumaImage(e.coverUrl) ||
+    resolveLumaImage(e.header_image_url) ||
+    resolveLumaImage(e.headerImageUrl) ||
+    resolveLumaImage(e.social_image_url) ||
+    resolveLumaImage(e.socialImageUrl) ||
+    resolveLumaImage(e.image_url) ||
+    resolveLumaImage(e.imageUrl) ||
+    resolveLumaImage(e.image) ||
+    null
+  );
+}
+
+function getObjectPath(
+  root: unknown,
+  path: string[]
+): unknown {
+  let current: unknown = root;
+  for (const segment of path) {
+    if (!current || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
 function parseLumaCalendarPage(html: string): ExtractedEvent[] | null {
   const match = html.match(
     /<script\s+id="__NEXT_DATA__"\s+type="application\/json">([\s\S]*?)<\/script>/
@@ -73,40 +119,53 @@ function parseLumaCalendarPage(html: string): ExtractedEvent[] | null {
 
   // Navigate to the events array — Luma nests it at props.pageProps.initialData.data.events
   // or directly at props.pageProps.events. We try multiple paths.
-  const pageProps = (data as any)?.props?.pageProps;
+  const pageProps = getObjectPath(data, ["props", "pageProps"]);
   if (!pageProps) return null;
 
-  const events: unknown[] =
-    pageProps?.initialData?.data?.events ||
-    pageProps?.initialData?.events ||
-    pageProps?.events ||
-    null;
+  const fromInitialDataData = getObjectPath(pageProps, ["initialData", "data", "events"]);
+  const fromInitialData = getObjectPath(pageProps, ["initialData", "events"]);
+  const fromPageProps = getObjectPath(pageProps, ["events"]);
+  const events = [fromInitialDataData, fromInitialData, fromPageProps].find(
+    (value) => Array.isArray(value)
+  );
 
-  if (!Array.isArray(events) || events.length === 0) return null;
+  if (!events || !Array.isArray(events) || events.length === 0) return null;
 
   const results: ExtractedEvent[] = [];
 
   for (let i = 0; i < events.length; i++) {
-    const evt = events[i] as any;
+    const evt = asRecord(events[i]);
+    if (!evt) continue;
     // Some calendar pages nest the event inside an `event` key per entry
-    const e = evt?.event || evt;
+    const nested = asRecord(evt.event);
+    const e = nested || evt;
 
-    if (!e?.name || !e?.start_at) continue;
+    const name = typeof e.name === "string" ? e.name : null;
+    const startAt = typeof e.start_at === "string" ? e.start_at : null;
+    if (!name || !startAt) continue;
 
-    const timezone = e.timezone || "America/Los_Angeles";
-    const slug = e.url || e.api_id || "";
+    const timezone =
+      typeof e.timezone === "string" ? e.timezone : "America/Los_Angeles";
+    const slug =
+      (typeof e.url === "string" && e.url) ||
+      (typeof e.api_id === "string" && e.api_id) ||
+      "";
     const website = slug
       ? `https://lu.ma/${slug}`
       : null;
 
     results.push({
       _tempId: `luma-cal-${Date.now()}-${i}`,
-      name: e.name,
-      description: e.description || null,
+      name,
+      description: typeof e.description === "string" ? e.description : null,
       website,
+      imageUrl: extractLumaImage(e),
       price: null,
-      startDate: utcToLocalNaive(e.start_at, timezone),
-      endDate: e.end_at ? utcToLocalNaive(e.end_at, timezone) : null,
+      startDate: utcToLocalNaive(startAt, timezone),
+      endDate:
+        typeof e.end_at === "string"
+          ? utcToLocalNaive(e.end_at, timezone)
+          : null,
       eventType: null,
       region: null,
       isFeatured: false,
@@ -127,7 +186,7 @@ function parseLumaEventPage(
   let jsonLdMatch: RegExpExecArray | null;
 
   while ((jsonLdMatch = regex.exec(html)) !== null) {
-    let obj: any;
+    let obj: unknown;
     try {
       obj = JSON.parse(jsonLdMatch[1]);
     } catch {
@@ -137,20 +196,25 @@ function parseLumaEventPage(
     // JSON-LD can be an object or an array
     const candidates = Array.isArray(obj) ? obj : [obj];
     for (const candidate of candidates) {
-      if (candidate?.["@type"] !== "Event") continue;
+      const record = asRecord(candidate);
+      if (!record || record["@type"] !== "Event") continue;
 
       return {
         _tempId: `luma-evt-${Date.now()}-0`,
-        name: candidate.name || null,
-        description: candidate.description || null,
+        name: typeof record.name === "string" ? record.name : null,
+        description:
+          typeof record.description === "string" ? record.description : null,
         website: url,
+        imageUrl: resolveLumaImage(record.image),
         price: null,
-        startDate: candidate.startDate
-          ? stripTimezoneOffset(candidate.startDate)
-          : null,
-        endDate: candidate.endDate
-          ? stripTimezoneOffset(candidate.endDate)
-          : null,
+        startDate:
+          typeof record.startDate === "string"
+            ? stripTimezoneOffset(record.startDate)
+            : null,
+        endDate:
+          typeof record.endDate === "string"
+            ? stripTimezoneOffset(record.endDate)
+            : null,
         eventType: null,
         region: null,
         isFeatured: false,

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { scrapeUrl, scrapePricingPages } from "@/lib/firecrawl";
 import { extractEvents, enrichEventsFromDetailPages, classifyEvents } from "@/lib/ai/extract-events";
 import { isLumaUrl, fetchLumaEvents } from "@/lib/luma";
+import { enrichEventsWithImages } from "@/lib/event-images";
 import type { ImportResponse } from "@/types/import";
 
 export const maxDuration = 120;
@@ -32,8 +33,9 @@ export async function POST(request: Request) {
       const lumaResult = await fetchLumaEvents(url);
       if (lumaResult) {
         const classified = await classifyEvents(lumaResult.events);
+        const withImages = await enrichEventsWithImages(classified, url);
         return NextResponse.json({
-          events: classified,
+          events: withImages,
           sourceUrl: url,
           pageType: lumaResult.pageType,
         });
@@ -87,6 +89,8 @@ export async function POST(request: Request) {
         url
       );
     }
+
+    result.events = await enrichEventsWithImages(result.events, url);
 
     const response: ImportResponse = {
       events: result.events,

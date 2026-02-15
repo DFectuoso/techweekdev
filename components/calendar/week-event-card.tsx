@@ -6,9 +6,10 @@ import { trackEventClick } from "@/lib/utils/track";
 
 interface WeekEventCardProps {
   event: Event;
+  previewMode?: boolean;
 }
 
-export function WeekEventCard({ event }: WeekEventCardProps) {
+export function WeekEventCard({ event, previewMode = false }: WeekEventCardProps) {
   const start = new Date(event.startDate);
   const hours = start.getHours();
   const minutes = start.getMinutes();
@@ -21,6 +22,19 @@ export function WeekEventCard({ event }: WeekEventCardProps) {
       ? "border-primary/60 bg-primary/10"
       : "border-border bg-card"
   }`;
+
+  if (previewMode) {
+    return (
+      <div className={className} aria-hidden="true">
+        <div className="h-3 w-4/5 rounded bg-foreground/15" />
+        <div className="mt-2 h-2.5 w-1/3 rounded bg-foreground/10" />
+        <div className="mt-2 flex items-center gap-1.5">
+          <span className="inline-flex h-4 w-14 rounded-full bg-foreground/12" />
+          <span className="inline-flex h-3 w-10 rounded bg-foreground/10" />
+        </div>
+      </div>
+    );
+  }
 
   const content = (
     <>

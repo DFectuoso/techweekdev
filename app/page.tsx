@@ -1,75 +1,259 @@
 export const dynamic = "force-dynamic";
 
-import { Hero } from "@/components/landing/hero";
-import { StatsBanner } from "@/components/landing/stats-banner";
-import Link from "next/link";
+import type { Metadata } from "next";
+import { count, gte } from "drizzle-orm";
+import { EpicLanding } from "@/components/landing/epic-landing";
+import { db } from "@/lib/db";
+import { type Event, events, users } from "@/lib/db/schema";
+import { getEventsBetweenFiltered, getFeaturedEvents } from "@/lib/queries/events";
+import {
+  formatDateParam,
+  generateDateRange,
+  getMonthEnd,
+  getMonthStart,
+  getWeekEnd,
+  getWeekStart,
+} from "@/lib/utils/date";
 
-export default function LandingPage() {
-  return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="flex items-center justify-between px-6 py-4">
-        <span className="text-xl font-bold tracking-tight text-primary">
-          TechWeek
-        </span>
-        <nav className="flex items-center gap-4">
-          <Link
-            href="/login"
-            className="text-sm font-medium text-muted-foreground hover:text-foreground"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/signup"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Get access
-          </Link>
-        </nav>
-      </header>
+export const metadata: Metadata = {
+  title: "TechWeek.dev - Never Miss Another Bay Area Tech Event",
+  description:
+    "One calendar for Bay Area AI meetups, hackathons, founder dinners, and conferences. Browse the calendar in seconds.",
+  openGraph: {
+    title: "TechWeek.dev - Never Miss Another Bay Area Tech Event",
+    description:
+      "One calendar for Bay Area AI meetups, hackathons, founder dinners, and conferences.",
+    type: "website",
+    images: ["https://techweek.dev/og-image.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TechWeek.dev - Never Miss Another Bay Area Tech Event",
+    description:
+      "One calendar for Bay Area AI meetups, hackathons, founder dinners, and conferences.",
+    images: ["https://techweek.dev/og-image.png"],
+  },
+};
 
-      <main className="flex-1">
-        <Hero />
-        <StatsBanner />
+type LandingPreviewData = {
+  heroYearDates: string[];
+  heroYearEventCountByDate: Record<string, number>;
+  heroYearFeaturedEvents: Event[];
+  showcaseWeekStartParam: string;
+  showcaseWeekEvents: Event[];
+  showcaseWeekFeaturedEvents: Event[];
+};
 
-        <section className="mx-auto max-w-3xl px-4 py-20 text-center">
-          <h2 className="text-2xl font-bold sm:text-3xl">
-            What&apos;s behind the wall?
-          </h2>
-          <div className="mt-10 grid gap-8 sm:grid-cols-3">
-            <Feature
-              title="12-Month Calendar"
-              description="See every event at a glance. Drill down by month or week."
-            />
-            <Feature
-              title="Featured Events"
-              description="We highlight the ones worth rearranging your schedule for."
-            />
-            <Feature
-              title="Filter by Region"
-              description="SF, Peninsula, South Bay, East Bay, North Bay — find what's near you."
-            />
-          </div>
-        </section>
-      </main>
-
-      <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        TechWeek — Bay Area Tech Events
-      </footer>
-    </div>
-  );
+function quantizeCount(countValue: number): number {
+  if (countValue <= 0) return 0;
+  if (countValue <= 2) return 1;
+  if (countValue <= 5) return 3;
+  return 6;
 }
 
-function Feature({
-  title,
-  description,
+function createPreviewEvent({
+  id,
+  name = "Members-only event",
+  website = null,
+  startDate,
+  endDate,
+  isFeatured = false,
+  eventType = "other",
 }: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div>
-      <h3 className="font-semibold">{title}</h3>
-      <p className="mt-2 text-sm text-muted-foreground">{description}</p>
-    </div>
+  id: string;
+  name?: string;
+  website?: string | null;
+  startDate: Date;
+  endDate?: Date;
+  isFeatured?: boolean;
+  eventType?: Event["eventType"];
+}): Event {
+  const now = new Date();
+  return {
+    id,
+    name,
+    description: null,
+    website,
+    normalizedWebsite: null,
+    price: null,
+    startDate,
+    endDate: endDate ?? null,
+    isFeatured,
+    eventType,
+    region: "other",
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function buildWeekShowcaseData({
+  weekStart,
+  weekEvents,
+  weekFeatured,
+}: {
+  weekStart: Date;
+  weekEvents: Event[];
+  weekFeatured: Event[];
+}): Pick<
+  LandingPreviewData,
+  "showcaseWeekStartParam" | "showcaseWeekEvents" | "showcaseWeekFeaturedEvents"
+> {
+  const featuredIds = new Set(weekFeatured.map((e) => e.id));
+  const previewEvents: Event[] = weekEvents.map((event, index) =>
+    createPreviewEvent({
+      id: `landing-week-real-${index}`,
+      name: "Members-only event",
+      website: index % 2 === 0 ? "/signup" : "/login",
+      startDate: new Date(event.startDate),
+      endDate: event.endDate ? new Date(event.endDate) : undefined,
+      isFeatured: featuredIds.has(event.id),
+      eventType: event.eventType || "other",
+    })
   );
+
+  const previewFeatured = previewEvents.filter((e) => e.isFeatured);
+
+  return {
+    showcaseWeekStartParam: formatDateParam(weekStart),
+    showcaseWeekEvents: previewEvents,
+    showcaseWeekFeaturedEvents: previewFeatured,
+  };
+}
+
+async function getLandingStats() {
+  try {
+    const [eventCount] = await db
+      .select({ count: count() })
+      .from(events)
+      .where(gte(events.startDate, new Date()));
+    const [userCount] = await db.select({ count: count() }).from(users);
+
+    return {
+      upcomingEvents: eventCount?.count ?? 0,
+      insiders: userCount?.count ?? 0,
+    };
+  } catch {
+    return {
+      upcomingEvents: 0,
+      insiders: 0,
+    };
+  }
+}
+
+async function getLandingPreviewData(): Promise<LandingPreviewData> {
+  const now = new Date();
+  const day = now.getDay();
+  const referenceDate = new Date(now);
+  if (day === 6) {
+    referenceDate.setDate(referenceDate.getDate() + 2);
+  } else if (day === 0) {
+    referenceDate.setDate(referenceDate.getDate() + 1);
+  }
+
+  const weekStart = getWeekStart(referenceDate);
+  const weekEnd = getWeekEnd(weekStart);
+
+  const year = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const yearStart = getMonthStart(year, currentMonth);
+  const endMonth = currentMonth + 11;
+  const endYear = year + Math.floor(endMonth / 12);
+  const endMonthNorm = endMonth % 12;
+  const yearEnd = getMonthEnd(endYear, endMonthNorm);
+
+  const [weekEventsRaw, weekFeaturedRaw, yearEventsRaw, yearFeaturedRaw] =
+    await Promise.all([
+      getEventsBetweenFiltered(weekStart, weekEnd),
+      getFeaturedEvents(weekStart, weekEnd),
+      getEventsBetweenFiltered(yearStart, yearEnd),
+      getFeaturedEvents(yearStart, yearEnd),
+    ]);
+
+  const weekShowcase = buildWeekShowcaseData({
+    weekStart,
+    weekEvents: weekEventsRaw,
+    weekFeatured: weekFeaturedRaw,
+  });
+
+  const dates = generateDateRange(year, currentMonth, 12);
+  const yearDates = dates.map((d) => formatDateParam(d));
+
+  const rawCounts: Record<string, number> = {};
+  for (const event of yearEventsRaw) {
+    const start = new Date(event.startDate);
+    const end = event.endDate ? new Date(event.endDate) : start;
+    const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const endDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    while (cursor <= endDay) {
+      const key = formatDateParam(cursor);
+      rawCounts[key] = (rawCounts[key] || 0) + 1;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+
+  const yearEventCountByDate: Record<string, number> = {};
+  for (const d of yearDates) {
+    yearEventCountByDate[d] = quantizeCount(rawCounts[d] || 0);
+  }
+
+  const heroYearFeaturedEvents: Event[] = yearFeaturedRaw.slice(0, 24).map((event, index) => {
+    const startDate = new Date(event.startDate);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = event.endDate ? new Date(event.endDate) : undefined;
+    if (endDate) endDate.setHours(0, 0, 0, 0);
+
+    return createPreviewEvent({
+      id: `landing-hero-year-featured-${index}`,
+      name: "Create account to see details",
+      website: index % 2 === 0 ? "/signup" : "/login",
+      startDate,
+      endDate,
+      isFeatured: true,
+    });
+  });
+
+  if (heroYearFeaturedEvents.length < 10) {
+    const activeDates = yearDates.filter((d) => (yearEventCountByDate[d] || 0) > 0);
+    const sourceDates = activeDates.length > 0 ? activeDates : yearDates;
+    const step = Math.max(1, Math.floor(sourceDates.length / 18));
+    let fallbackIndex = heroYearFeaturedEvents.length;
+
+    for (let i = 0; i < sourceDates.length && fallbackIndex < 24; i += step) {
+      const [y, m, d] = sourceDates[i]!.split("-").map(Number);
+      const startDate = new Date(y!, m! - 1, d!);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(startDate);
+      if (fallbackIndex % 3 === 0) endDate.setDate(endDate.getDate() + 1);
+
+      heroYearFeaturedEvents.push(
+        createPreviewEvent({
+          id: `landing-hero-year-fallback-${fallbackIndex}`,
+          name: "Create account to see details",
+          website: fallbackIndex % 2 === 0 ? "/signup" : "/login",
+          startDate,
+          endDate,
+          isFeatured: true,
+        }),
+      );
+      fallbackIndex += 1;
+    }
+  }
+
+  return {
+    heroYearDates: yearDates,
+    heroYearEventCountByDate: yearEventCountByDate,
+    heroYearFeaturedEvents,
+    showcaseWeekStartParam: weekShowcase.showcaseWeekStartParam,
+    showcaseWeekEvents: weekShowcase.showcaseWeekEvents,
+    showcaseWeekFeaturedEvents: weekShowcase.showcaseWeekFeaturedEvents,
+  };
+}
+
+export default async function LandingPage() {
+  const [stats, previews] = await Promise.all([
+    getLandingStats(),
+    getLandingPreviewData(),
+  ]);
+
+  return <EpicLanding stats={stats} previews={previews} />;
 }

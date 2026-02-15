@@ -16,9 +16,17 @@ interface WeekGridProps {
   weekStartParam: string;
   events: Event[];
   featuredEvents: Event[];
+  previewMode?: boolean;
+  previewLabel?: string;
 }
 
-export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridProps) {
+export function WeekGrid({
+  weekStartParam,
+  events,
+  featuredEvents,
+  previewMode = false,
+  previewLabel = "Members-only event",
+}: WeekGridProps) {
   const weekStart = parseDateParam(weekStartParam);
   const today = new Date();
 
@@ -129,11 +137,12 @@ export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridPro
         };
         const label = (
           <span className={`whitespace-nowrap h-full flex items-center px-2 text-xs font-bold text-foreground/80 ${barColor} group-hover:pr-3`}>
-            {bar.event.name}
+            {previewMode ? previewLabel : bar.event.name}
           </span>
         );
+        const canLink = !previewMode && !!bar.event.website;
 
-        return bar.event.website ? (
+        return canLink ? (
           <a
             key={bar.event.id}
             href={bar.event.website}
@@ -159,7 +168,7 @@ export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridPro
   );
 
   return (
-    <>
+    <div className={previewMode ? "pointer-events-none select-none" : ""}>
       {/* Mobile agenda view */}
       <div className="sm:hidden">
         {/* Featured events */}
@@ -172,10 +181,11 @@ export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridPro
               const barColor = getFeaturedBarColor(bar.idx);
               const content = (
                 <span className={`block w-full rounded px-2.5 py-1.5 text-xs font-bold text-foreground/80 ${barColor}`}>
-                  {bar.event.name}
+                  {previewMode ? previewLabel : bar.event.name}
                 </span>
               );
-              return bar.event.website ? (
+              const canLink = !previewMode && !!bar.event.website;
+              return canLink ? (
                 <a
                   key={bar.event.id}
                   href={bar.event.website}
@@ -233,7 +243,7 @@ export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridPro
                 <div className="space-y-1.5 p-2">
                   {dayEvents.length > 0 ? (
                     dayEvents.map((event) => (
-                      <WeekEventCard key={event.id} event={event} />
+                      <WeekEventCard key={event.id} event={event} previewMode={previewMode} />
                     ))
                   ) : (
                     <p className="py-2 text-center text-xs text-muted-foreground italic">
@@ -303,6 +313,7 @@ export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridPro
                       <WeekEventCard
                         key={event.id}
                         event={event}
+                        previewMode={previewMode}
                       />
                     ))
                   ) : (
@@ -316,6 +327,6 @@ export function WeekGrid({ weekStartParam, events, featuredEvents }: WeekGridPro
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

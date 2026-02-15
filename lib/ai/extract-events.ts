@@ -36,6 +36,7 @@ Return ONLY valid JSON (no markdown, no code fences) in this exact shape:
       "name": "Event Name",
       "description": "Brief description of the event",
       "website": "https://event-url.com",
+      "imageUrl": "https://cdn.example.com/event-cover.jpg",
       "price": "Free" | "$50" | "$499-$1,299" | "From $99" | "Invite Only" | null,
       "startDate": "2025-06-15T09:00:00",
       "endDate": "2025-06-15T17:00:00",
@@ -60,7 +61,8 @@ RULES:
 - For single event pages, extract just that one event.
 - For non-event pages, return an empty events array.
 - If pricing information is provided in a separate section, use it to fill in prices.
-- For the "website" field: use the individual event page URL (not the listing page URL). Match event names to URLs from the provided links list when available. Set null if no individual event URL can be determined.`;
+- For the "website" field: use the individual event page URL (not the listing page URL). Match event names to URLs from the provided links list when available. Set null if no individual event URL can be determined.
+- For "imageUrl": use an event cover/hero/poster image URL when present; otherwise set null.`;
 }
 
 const MAX_INPUT_CHARS = 150_000;
@@ -129,6 +131,7 @@ interface RawEvent {
   name?: string;
   description?: string;
   website?: string;
+  imageUrl?: string;
   price?: string;
   startDate?: string;
   endDate?: string;
@@ -162,6 +165,7 @@ function normalizeEvent(
     name: raw.name || null,
     description: raw.description || null,
     website: raw.website || sourceUrl || null,
+    imageUrl: raw.imageUrl || null,
     price: raw.price || null,
     startDate: normalizeDate(raw.startDate),
     endDate: normalizeDate(raw.endDate),
@@ -332,6 +336,7 @@ export async function enrichEventsFromDetailPages(
       price: event.price ?? enriched.price,
       eventType: event.eventType ?? enriched.eventType,
       region: event.region ?? enriched.region,
+      imageUrl: event.imageUrl ?? enriched.imageUrl,
     };
   });
 }

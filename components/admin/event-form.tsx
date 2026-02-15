@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
@@ -23,6 +23,7 @@ function toDatetimeLocal(date: Date): string {
 
 export function EventForm({ event }: EventFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const formRef = useRef<HTMLFormElement>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -31,6 +32,27 @@ export function EventForm({ event }: EventFormProps) {
   } | null>(null);
 
   const isEdit = !!event;
+  const cycleMode = !isEdit && searchParams.get("cycle") === "1";
+  const prefill = !isEdit
+    ? {
+        name: searchParams.get("name") || "",
+        description: searchParams.get("description") || "",
+        website: cycleMode ? "" : searchParams.get("website") || "",
+        price: searchParams.get("price") || "",
+        startDate: searchParams.get("startDate") || "",
+        endDate: searchParams.get("endDate") || "",
+        eventType: searchParams.get("eventType") || "",
+        region: searchParams.get("region") || "",
+        isFeatured: searchParams.get("isFeatured") === "1",
+      }
+    : null;
+
+  const prefStartDate = prefill?.startDate
+    ? toDatetimeLocal(new Date(prefill.startDate))
+    : "";
+  const prefEndDate = prefill?.endDate
+    ? toDatetimeLocal(new Date(prefill.endDate))
+    : "";
 
   async function submitForm(force: boolean) {
     const form = formRef.current;
@@ -114,11 +136,19 @@ export function EventForm({ event }: EventFormProps) {
         </div>
       )}
 
+      {cycleMode && (
+        <div className="rounded-md border border-blue-300 bg-blue-50 p-3 text-sm dark:border-blue-700 dark:bg-blue-950">
+          <p className="text-blue-800 dark:text-blue-200">
+            Creating the next event in this cycle. Update the URL if needed before saving.
+          </p>
+        </div>
+      )}
+
       <Input
         id="name"
         name="name"
         label="Event Name"
-        defaultValue={event?.name || ""}
+        defaultValue={event?.name || prefill?.name || ""}
         required
       />
 
@@ -126,7 +156,7 @@ export function EventForm({ event }: EventFormProps) {
         id="description"
         name="description"
         label="Description"
-        defaultValue={event?.description || ""}
+        defaultValue={event?.description || prefill?.description || ""}
         rows={3}
       />
 
@@ -135,7 +165,7 @@ export function EventForm({ event }: EventFormProps) {
         name="website"
         label="Website URL"
         type="url"
-        defaultValue={event?.website || ""}
+        defaultValue={event?.website || prefill?.website || ""}
         placeholder="https://..."
       />
 
@@ -143,7 +173,7 @@ export function EventForm({ event }: EventFormProps) {
         id="price"
         name="price"
         label="Price"
-        defaultValue={event?.price || ""}
+        defaultValue={event?.price || prefill?.price || ""}
         placeholder='Free, $50, $500-$1500'
       />
 
@@ -154,7 +184,9 @@ export function EventForm({ event }: EventFormProps) {
           label="Start Date"
           type="datetime-local"
           defaultValue={
-            event?.startDate ? toDatetimeLocal(new Date(event.startDate)) : ""
+            event?.startDate
+              ? toDatetimeLocal(new Date(event.startDate))
+              : prefStartDate
           }
           required
         />
@@ -164,7 +196,9 @@ export function EventForm({ event }: EventFormProps) {
           label="End Date (optional)"
           type="datetime-local"
           defaultValue={
-            event?.endDate ? toDatetimeLocal(new Date(event.endDate)) : ""
+            event?.endDate
+              ? toDatetimeLocal(new Date(event.endDate))
+              : prefEndDate
           }
         />
       </div>
@@ -176,7 +210,7 @@ export function EventForm({ event }: EventFormProps) {
           label="Event Type"
           options={typeOptions}
           placeholder="Select type"
-          defaultValue={event?.eventType || ""}
+          defaultValue={event?.eventType || prefill?.eventType || ""}
         />
         <Select
           id="region"
@@ -184,7 +218,7 @@ export function EventForm({ event }: EventFormProps) {
           label="Region"
           options={regionOptions}
           placeholder="Select region"
-          defaultValue={event?.region || ""}
+          defaultValue={event?.region || prefill?.region || ""}
         />
       </div>
 
@@ -192,7 +226,7 @@ export function EventForm({ event }: EventFormProps) {
         <input
           type="checkbox"
           name="isFeatured"
-          defaultChecked={event?.isFeatured || false}
+          defaultChecked={event?.isFeatured || prefill?.isFeatured || false}
           className="h-4 w-4 rounded border-border accent-primary"
         />
         Featured event
