@@ -34,7 +34,16 @@ function truncateUrl(url: string): string {
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "—";
-  // Parse naive datetime string directly to avoid timezone shift
+  const parsed = new Date(dateStr);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+
+  // Fallback for naive strings that cannot be parsed by Date.
   const [datePart] = dateStr.split("T");
   const [y, m, d] = datePart.split("-").map(Number);
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -353,4 +362,3 @@ export function ImportReviewList({
     </div>
   );
 }
-

@@ -34,6 +34,15 @@ function truncateUrl(url: string): string {
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "Unknown date";
+  const parsed = new Date(dateStr);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+
   const [datePart] = dateStr.split("T");
   const [y, m, d] = datePart.split("-").map(Number);
   const months = [

@@ -7,6 +7,7 @@ import type { Event } from "@/lib/db/schema";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { resyncEventFromUrl } from "@/lib/admin/resync-event";
 
 export function EventTable() {
   const router = useRouter();
@@ -14,6 +15,8 @@ export function EventTable() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showPast, setShowPast] = useState(false);
+  const [resyncingId, setResyncingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     fetch("/api/admin/events")
@@ -64,6 +67,27 @@ export function EventTable() {
     setEvents((prev) => prev.filter((e) => e.id !== id));
   }
 
+  async function handleResync(event: Event) {
+    if (!event.website) return;
+    if (!confirm(`Resync "${event.name}" from its website URL?`)) return;
+
+    setActionError("");
+    setResyncingId(event.id);
+    try {
+      const updated = await resyncEventFromUrl(event);
+      setEvents((prev) =>
+        prev.map((e) => (e.id === event.id ? updated : e))
+      );
+      router.refresh();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Resync failed"
+      );
+    } finally {
+      setResyncingId(null);
+    }
+  }
+
   if (loading) {
     return <p className="text-muted-foreground">Loading events...</p>;
   }
@@ -98,6 +122,9 @@ export function EventTable() {
           Show past events
         </label>
       </div>
+      {actionError && (
+        <p className="mb-4 text-sm text-destructive">{actionError}</p>
+      )}
 
       {filteredEvents.length === 0 ? (
         <p className="text-muted-foreground py-8 text-center">
@@ -175,6 +202,16 @@ export function EventTable() {
                             Edit
                           </Button>
                         </Link>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={!event.website || resyncingId === event.id}
+                          onClick={() => handleResync(event)}
+                        >
+                          {resyncingId === event.id
+                            ? "Resyncing..."
+                            : "Resync"}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"

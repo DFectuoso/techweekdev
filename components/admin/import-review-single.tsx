@@ -17,8 +17,18 @@ interface ImportReviewSingleProps {
 }
 
 function toDatetimeLocal(dateStr: string): string {
-  // AI returns "YYYY-MM-DDTHH:MM:SS" (no timezone) — just take first 16 chars for datetime-local input
-  return dateStr.slice(0, 16);
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) {
+    // Fallback for naive strings that are already datetime-local compatible
+    return dateStr.slice(0, 16);
+  }
+
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const h = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${d}T${h}:${min}`;
 }
 
 function confidenceLabel(c: number): string {

@@ -23,39 +23,117 @@ async function fetchLumaPage(url: string): Promise<string> {
 }
 
 /**
- * Convert a UTC ISO timestamp to a naive local datetime string
- * using the given IANA timezone (e.g. "America/Los_Angeles").
- * Returns "YYYY-MM-DDTHH:MM:SS".
+ * Convert a date string to a timezone-aware ISO instant.
+ * If the input already has an offset/Z, it is normalized via Date parsing.
+ * If it is naive (no timezone), we interpret it in the supplied IANA timezone.
  */
-function utcToLocalNaive(utcIso: string, timezone: string): string {
-  const date = new Date(utcIso);
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).formatToParts(date);
+const EXPLICIT_TZ_REGEX = /(Z|[+-]\d{2}:\d{2})$/i;
+const NAIVE_ISO_REGEX =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/;
 
-  const get = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((p) => p.type === type)?.value ?? "00";
-
-  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}`;
+interface DateParts {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
 }
 
-/**
- * Strip timezone offset from an ISO string that already includes one
- * (e.g. "2026-02-07T09:00:00.000-08:00" → "2026-02-07T09:00:00").
- */
-function stripTimezoneOffset(iso: string): string {
-  // Remove trailing Z, or +/-HH:MM offset, and any milliseconds
-  return iso
-    .replace(/\.\d{3}/, "")
-    .replace(/Z$/, "")
-    .replace(/[+-]\d{2}:\d{2}$/, "");
+function parseNaiveIsoParts(input: string): DateParts | null {
+  const match = input.match(NAIVE_ISO_REGEX);
+  if (!match) return null;
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: Number(match[4]),
+    minute: Number(match[5]),
+    second: Number(match[6] ?? "0"),
+  };
+}
+
+function partsToUtcMs(parts: DateParts): number {
+  return Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second
+  );
+}
+
+function formatInTimezoneParts(
+  utcMs: number,
+  timezone: string
+): DateParts | null {
+  try {
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    });
+    const formatted = formatter.formatToParts(new Date(utcMs));
+    const getPart = (type: Intl.DateTimeFormatPartTypes): number => {
+      const value = formatted.find((part) => part.type === type)?.value ?? "0";
+      return Number(value);
+    };
+    return {
+      year: getPart("year"),
+      month: getPart("month"),
+      day: getPart("day"),
+      hour: getPart("hour"),
+      minute: getPart("minute"),
+      second: getPart("second"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function zonedNaiveToIso(naiveIso: string, timezone: string): string | null {
+  const target = parseNaiveIsoParts(naiveIso);
+  if (!target) return null;
+
+  // Start from a UTC guess with matching wall-clock components, then converge.
+  let guess = partsToUtcMs(target);
+  for (let i = 0; i < 3; i++) {
+    const zoned = formatInTimezoneParts(guess, timezone);
+    if (!zoned) return null;
+    const diffMs = partsToUtcMs(target) - partsToUtcMs(zoned);
+    if (diffMs === 0) break;
+    guess += diffMs;
+  }
+
+  const date = new Date(guess);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function normalizeLumaDate(
+  rawIso: string,
+  timezone?: string
+): string | null {
+  const input = rawIso.trim();
+  if (!input) return null;
+
+  if (EXPLICIT_TZ_REGEX.test(input)) {
+    const date = new Date(input);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
+  if (timezone) {
+    const zoned = zonedNaiveToIso(input, timezone);
+    if (zoned) return zoned;
+  }
+
+  const fallback = new Date(input);
+  return Number.isNaN(fallback.getTime()) ? null : fallback.toISOString();
 }
 
 function resolveLumaImage(raw: unknown): string | null {
@@ -146,6 +224,11 @@ function parseLumaCalendarPage(html: string): ExtractedEvent[] | null {
 
     const timezone =
       typeof e.timezone === "string" ? e.timezone : "America/Los_Angeles";
+    const normalizedStart = normalizeLumaDate(startAt, timezone);
+    if (!normalizedStart) continue;
+
+    const normalizedEnd =
+      typeof e.end_at === "string" ? normalizeLumaDate(e.end_at, timezone) : null;
     const slug =
       (typeof e.url === "string" && e.url) ||
       (typeof e.api_id === "string" && e.api_id) ||
@@ -161,11 +244,8 @@ function parseLumaCalendarPage(html: string): ExtractedEvent[] | null {
       website,
       imageUrl: extractLumaImage(e),
       price: null,
-      startDate: utcToLocalNaive(startAt, timezone),
-      endDate:
-        typeof e.end_at === "string"
-          ? utcToLocalNaive(e.end_at, timezone)
-          : null,
+      startDate: normalizedStart,
+      endDate: normalizedEnd,
       eventType: null,
       region: null,
       isFeatured: false,
@@ -209,11 +289,11 @@ function parseLumaEventPage(
         price: null,
         startDate:
           typeof record.startDate === "string"
-            ? stripTimezoneOffset(record.startDate)
+            ? normalizeLumaDate(record.startDate)
             : null,
         endDate:
           typeof record.endDate === "string"
-            ? stripTimezoneOffset(record.endDate)
+            ? normalizeLumaDate(record.endDate)
             : null,
         eventType: null,
         region: null,
