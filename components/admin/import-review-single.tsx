@@ -9,6 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EVENT_TYPES, REGIONS } from "@/lib/db/schema";
 import type { ExtractedEvent } from "@/types/import";
+import {
+  formatDatetimeLocalInBayArea,
+  toIsoInBayArea,
+} from "@/lib/utils/timezone";
 
 interface ImportReviewSingleProps {
   event: ExtractedEvent;
@@ -17,18 +21,7 @@ interface ImportReviewSingleProps {
 }
 
 function toDatetimeLocal(dateStr: string): string {
-  const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) {
-    // Fallback for naive strings that are already datetime-local compatible
-    return dateStr.slice(0, 16);
-  }
-
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const h = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${d}T${h}:${min}`;
+  return formatDatetimeLocalInBayArea(dateStr) || dateStr.slice(0, 16);
 }
 
 function confidenceLabel(c: number): string {
@@ -71,10 +64,10 @@ export function ImportReviewSingle({
       website: fd.get("website"),
       price: fd.get("price"),
       startDate: fd.get("startDate")
-        ? new Date(fd.get("startDate") as string).toISOString()
+        ? toIsoInBayArea(fd.get("startDate") as string)
         : null,
       endDate: fd.get("endDate")
-        ? new Date(fd.get("endDate") as string).toISOString()
+        ? toIsoInBayArea(fd.get("endDate") as string)
         : null,
       isFeatured: fd.get("isFeatured") === "on",
       eventType: fd.get("eventType") || null,

@@ -1,4 +1,5 @@
 import type { ExtractedEvent } from "@/types/import";
+import { BAY_AREA_TIMEZONE } from "@/lib/utils/timezone";
 
 const LUMA_HOSTNAMES = new Set([
   "lu.ma",
@@ -16,10 +17,11 @@ export function isLumaUrl(url: string): boolean {
   }
 }
 
-async function fetchLumaPage(url: string): Promise<string> {
+async function fetchLumaPage(url: string): Promise<{ html: string; finalUrl: string }> {
   const res = await fetch(url, { redirect: "follow" });
   if (!res.ok) throw new Error(`Luma fetch failed: ${res.status}`);
-  return res.text();
+  const html = await res.text();
+  return { html, finalUrl: res.url || url };
 }
 
 /**
@@ -127,10 +129,8 @@ function normalizeLumaDate(
     return Number.isNaN(date.getTime()) ? null : date.toISOString();
   }
 
-  if (timezone) {
-    const zoned = zonedNaiveToIso(input, timezone);
-    if (zoned) return zoned;
-  }
+  const zoned = zonedNaiveToIso(input, timezone || BAY_AREA_TIMEZONE);
+  if (zoned) return zoned;
 
   const fallback = new Date(input);
   return Number.isNaN(fallback.getTime()) ? null : fallback.toISOString();
@@ -182,22 +182,27 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function parseLumaCalendarPage(html: string): ExtractedEvent[] | null {
+function extractLumaNextData(html: string): Record<string, unknown> | null {
   const match = html.match(
     /<script\s+id="__NEXT_DATA__"\s+type="application\/json">([\s\S]*?)<\/script>/
   );
   if (!match) return null;
 
-  let data: Record<string, unknown>;
   try {
-    data = JSON.parse(match[1]);
+    return JSON.parse(match[1]) as Record<string, unknown>;
   } catch {
     return null;
   }
+}
+
+function parseLumaCalendarPage(
+  nextData: Record<string, unknown> | null
+): ExtractedEvent[] | null {
+  if (!nextData) return null;
 
   // Navigate to the events array — Luma nests it at props.pageProps.initialData.data.events
   // or directly at props.pageProps.events. We try multiple paths.
-  const pageProps = getObjectPath(data, ["props", "pageProps"]);
+  const pageProps = getObjectPath(nextData, ["props", "pageProps"]);
   if (!pageProps) return null;
 
   const fromInitialDataData = getObjectPath(pageProps, ["initialData", "data", "events"]);
@@ -222,13 +227,13 @@ function parseLumaCalendarPage(html: string): ExtractedEvent[] | null {
     const startAt = typeof e.start_at === "string" ? e.start_at : null;
     if (!name || !startAt) continue;
 
-    const timezone =
-      typeof e.timezone === "string" ? e.timezone : "America/Los_Angeles";
-    const normalizedStart = normalizeLumaDate(startAt, timezone);
+    const normalizedStart = normalizeLumaDate(startAt, BAY_AREA_TIMEZONE);
     if (!normalizedStart) continue;
 
     const normalizedEnd =
-      typeof e.end_at === "string" ? normalizeLumaDate(e.end_at, timezone) : null;
+      typeof e.end_at === "string"
+        ? normalizeLumaDate(e.end_at, BAY_AREA_TIMEZONE)
+        : null;
     const slug =
       (typeof e.url === "string" && e.url) ||
       (typeof e.api_id === "string" && e.api_id) ||
@@ -289,11 +294,11 @@ function parseLumaEventPage(
         price: null,
         startDate:
           typeof record.startDate === "string"
-            ? normalizeLumaDate(record.startDate)
+            ? normalizeLumaDate(record.startDate, BAY_AREA_TIMEZONE)
             : null,
         endDate:
           typeof record.endDate === "string"
-            ? normalizeLumaDate(record.endDate)
+            ? normalizeLumaDate(record.endDate, BAY_AREA_TIMEZONE)
             : null,
         eventType: null,
         region: null,
@@ -310,23 +315,28 @@ export async function fetchLumaEvents(
   url: string
 ): Promise<{ events: ExtractedEvent[]; pageType: "single" | "listing" } | null> {
   let html: string;
+  let finalUrl = url;
   try {
-    html = await fetchLumaPage(url);
+    const page = await fetchLumaPage(url);
+    html = page.html;
+    finalUrl = page.finalUrl;
   } catch (err) {
     console.error("Luma fetch error:", err);
     return null;
   }
 
-  // Try calendar/listing page first
-  const calendarEvents = parseLumaCalendarPage(html);
-  if (calendarEvents) {
-    return { events: calendarEvents, pageType: "listing" };
-  }
+  const nextData = extractLumaNextData(html);
 
-  // Try single event page
-  const singleEvent = parseLumaEventPage(html, url);
+  // Try single-event first to avoid misclassifying event pages that also contain embedded listings.
+  const singleEvent = parseLumaEventPage(html, finalUrl);
   if (singleEvent) {
     return { events: [singleEvent], pageType: "single" };
+  }
+
+  // Fallback to calendar/listing pages.
+  const calendarEvents = parseLumaCalendarPage(nextData);
+  if (calendarEvents) {
+    return { events: calendarEvents, pageType: "listing" };
   }
 
   // Neither worked — caller should fall back to generic scrape+AI

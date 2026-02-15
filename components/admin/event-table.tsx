@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { resyncEventFromUrl } from "@/lib/admin/resync-event";
+import { formatDateInBayArea } from "@/lib/utils/timezone";
 
 export function EventTable() {
   const router = useRouter();
@@ -178,7 +179,7 @@ export function EventTable() {
                       {event.name}
                     </td>
                     <td className="py-3 pr-4 text-muted-foreground whitespace-nowrap">
-                      {start.toLocaleDateString()}
+                      {formatDateInBayArea(start) || "—"}
                     </td>
                     <td className="py-3 pr-4">
                       {event.eventType && (

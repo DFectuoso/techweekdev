@@ -8,6 +8,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { EVENT_TYPES, REGIONS } from "@/lib/db/schema";
 import { EditForm, confidenceColor } from "@/components/admin/import-edit-form";
 import type { ExtractedEvent } from "@/types/import";
+import { formatDateInBayArea } from "@/lib/utils/timezone";
 
 interface ImportReviewListProps {
   events: ExtractedEvent[];
@@ -34,20 +35,7 @@ function truncateUrl(url: string): string {
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return "—";
-  const parsed = new Date(dateStr);
-  if (!Number.isNaN(parsed.getTime())) {
-    return parsed.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  }
-
-  // Fallback for naive strings that cannot be parsed by Date.
-  const [datePart] = dateStr.split("T");
-  const [y, m, d] = datePart.split("-").map(Number);
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${months[m - 1]} ${d}, ${y}`;
+  return formatDateInBayArea(dateStr) || "—";
 }
 
 export function ImportReviewList({

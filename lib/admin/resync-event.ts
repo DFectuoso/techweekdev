@@ -39,9 +39,10 @@ function pickBestImportedEvent(
 }
 
 function buildUpdatePayload(event: Event, extracted: ExtractedEvent, sourceUrl: string) {
-  const fallbackStart = toIso(event.startDate);
-  if (!extracted.startDate && !fallbackStart) {
-    throw new Error("Imported event is missing a valid start date");
+  if (!extracted.startDate) {
+    throw new Error(
+      "Imported event is missing a start date, so time could not be resynced"
+    );
   }
 
   const website = extracted.website || sourceUrl || event.website || null;
@@ -50,7 +51,7 @@ function buildUpdatePayload(event: Event, extracted: ExtractedEvent, sourceUrl: 
     description: extracted.description ?? event.description ?? null,
     website,
     price: extracted.price ?? event.price ?? null,
-    startDate: extracted.startDate || fallbackStart!,
+    startDate: extracted.startDate,
     endDate: extracted.endDate ?? toIso(event.endDate),
     isFeatured: event.isFeatured,
     eventType: extracted.eventType ?? event.eventType ?? null,

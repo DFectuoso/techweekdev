@@ -1,3 +1,5 @@
+import { BAY_AREA_TIMEZONE } from "@/lib/utils/timezone";
+
 const MONTH_NAMES = [
   "January",
   "February",
@@ -29,6 +31,28 @@ const SHORT_MONTH_NAMES = [
 ];
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function getBayAreaDateParts(date: Date): {
+  year: number;
+  month: number;
+  day: number;
+} {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: BAY_AREA_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const get = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find((part) => part.type === type)?.value ?? "0");
+
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+  };
+}
 
 export function getMonthName(month: number): string {
   return MONTH_NAMES[month]!;
@@ -122,26 +146,36 @@ export function parseDateParam(param: string): Date {
 
 /** Format a date for display: "Mar 12" or "Mar 12, 2025" */
 export function formatEventDate(date: Date, includeYear = false): string {
-  const month = SHORT_MONTH_NAMES[date.getMonth()];
-  const day = date.getDate();
+  const parts = getBayAreaDateParts(date);
+  const month = SHORT_MONTH_NAMES[parts.month - 1];
+  const day = parts.day;
   if (includeYear) {
-    return `${month} ${day}, ${date.getFullYear()}`;
+    return `${month} ${day}, ${parts.year}`;
   }
   return `${month} ${day}`;
 }
 
 /** Format a date range */
 export function formatDateRange(start: Date, end?: Date | null): string {
-  if (!end || start.toDateString() === end.toDateString()) {
+  const safeEnd = end ?? null;
+  const startParts = getBayAreaDateParts(start);
+  const endParts = safeEnd ? getBayAreaDateParts(safeEnd) : null;
+
+  if (
+    !endParts ||
+    (startParts.year === endParts.year &&
+      startParts.month === endParts.month &&
+      startParts.day === endParts.day)
+  ) {
     return formatEventDate(start, true);
   }
   if (
-    start.getMonth() === end.getMonth() &&
-    start.getFullYear() === end.getFullYear()
+    startParts.month === endParts.month &&
+    startParts.year === endParts.year
   ) {
-    return `${getShortMonthName(start.getMonth())} ${start.getDate()}-${end.getDate()}, ${start.getFullYear()}`;
+    return `${getShortMonthName(startParts.month - 1)} ${startParts.day}-${endParts.day}, ${startParts.year}`;
   }
-  return `${formatEventDate(start)} - ${formatEventDate(end, true)}`;
+  return `${formatEventDate(start)} - ${formatEventDate(safeEnd!, true)}`;
 }
 
 /** Get the Monday of a given week row in a month grid */

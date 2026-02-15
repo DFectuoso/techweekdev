@@ -3,6 +3,7 @@
 import type { Event } from "@/lib/db/schema";
 import { typeColors } from "@/lib/utils/event-colors";
 import { trackEventClick } from "@/lib/utils/track";
+import { BAY_AREA_TIMEZONE } from "@/lib/utils/timezone";
 
 interface WeekEventCardProps {
   event: Event;
@@ -11,11 +12,12 @@ interface WeekEventCardProps {
 
 export function WeekEventCard({ event, previewMode = false }: WeekEventCardProps) {
   const start = new Date(event.startDate);
-  const hours = start.getHours();
-  const minutes = start.getMinutes();
-  const ampm = hours >= 12 ? "PM" : "AM";
-  const h12 = hours % 12 || 12;
-  const timeStr = `${h12}:${String(minutes).padStart(2, "0")} ${ampm}`;
+  const timeStr = new Intl.DateTimeFormat("en-US", {
+    timeZone: BAY_AREA_TIMEZONE,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(start);
 
   const className = `block w-full text-left border p-3 transition-colors hover:bg-accent/50 ${
     event.isFeatured

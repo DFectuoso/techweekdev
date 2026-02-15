@@ -7,18 +7,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { EVENT_TYPES, REGIONS, type Event } from "@/lib/db/schema";
+import {
+  formatDatetimeLocalInBayArea,
+  toIsoInBayArea,
+} from "@/lib/utils/timezone";
 
 interface EventFormProps {
   event?: Event;
-}
-
-function toDatetimeLocal(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const h = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${d}T${h}:${min}`;
 }
 
 export function EventForm({ event }: EventFormProps) {
@@ -48,10 +43,10 @@ export function EventForm({ event }: EventFormProps) {
     : null;
 
   const prefStartDate = prefill?.startDate
-    ? toDatetimeLocal(new Date(prefill.startDate))
+    ? formatDatetimeLocalInBayArea(prefill.startDate)
     : "";
   const prefEndDate = prefill?.endDate
-    ? toDatetimeLocal(new Date(prefill.endDate))
+    ? formatDatetimeLocalInBayArea(prefill.endDate)
     : "";
 
   async function submitForm(force: boolean) {
@@ -69,10 +64,10 @@ export function EventForm({ event }: EventFormProps) {
       website: fd.get("website"),
       price: fd.get("price"),
       startDate: fd.get("startDate")
-        ? new Date(fd.get("startDate") as string).toISOString()
+        ? toIsoInBayArea(fd.get("startDate") as string)
         : null,
       endDate: fd.get("endDate")
-        ? new Date(fd.get("endDate") as string).toISOString()
+        ? toIsoInBayArea(fd.get("endDate") as string)
         : null,
       isFeatured: fd.get("isFeatured") === "on",
       eventType: fd.get("eventType") || null,
@@ -185,7 +180,7 @@ export function EventForm({ event }: EventFormProps) {
           type="datetime-local"
           defaultValue={
             event?.startDate
-              ? toDatetimeLocal(new Date(event.startDate))
+              ? formatDatetimeLocalInBayArea(event.startDate)
               : prefStartDate
           }
           required
@@ -197,7 +192,7 @@ export function EventForm({ event }: EventFormProps) {
           type="datetime-local"
           defaultValue={
             event?.endDate
-              ? toDatetimeLocal(new Date(event.endDate))
+              ? formatDatetimeLocalInBayArea(event.endDate)
               : prefEndDate
           }
         />

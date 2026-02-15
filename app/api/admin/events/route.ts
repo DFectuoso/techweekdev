@@ -5,6 +5,7 @@ import { events } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
 import { normalizeUrl } from "@/lib/utils/normalize-url";
 import { findDuplicate } from "@/lib/queries/duplicates";
+import { parseDateTimeInBayArea } from "@/lib/utils/timezone";
 
 export async function GET() {
   const session = await auth();
@@ -41,7 +42,12 @@ export async function POST(request: Request) {
     force,
   } = body;
 
-  if (!name || !startDate) {
+  const parsedStartDate =
+    typeof startDate === "string" ? parseDateTimeInBayArea(startDate) : null;
+  const parsedEndDate =
+    typeof endDate === "string" ? parseDateTimeInBayArea(endDate) : null;
+
+  if (!name || !parsedStartDate) {
     return NextResponse.json(
       { error: "Name and start date are required" },
       { status: 400 }
@@ -77,8 +83,8 @@ export async function POST(request: Request) {
         website: website || null,
         normalizedWebsite: normalizedWebsite,
         price: price || null,
-        startDate: new Date(startDate),
-        endDate: endDate ? new Date(endDate) : null,
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
         isFeatured: !!isFeatured,
         eventType: eventType || null,
         region: region || null,

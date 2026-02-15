@@ -3,19 +3,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import type { ExtractedEvent } from "@/types/import";
+import {
+  formatDatetimeLocalInBayArea,
+  toIsoInBayArea,
+} from "@/lib/utils/timezone";
 
 export function toDatetimeLocal(dateStr: string): string {
-  const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) {
-    return dateStr.slice(0, 16);
-  }
-
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const h = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${d}T${h}:${min}`;
+  return formatDatetimeLocalInBayArea(dateStr) || dateStr.slice(0, 16);
 }
 
 export function confidenceColor(c: number): string {
@@ -49,10 +43,10 @@ export function EditForm({
       website: (form.get("website") as string) || null,
       price: (form.get("price") as string) || null,
       startDate: form.get("startDate")
-        ? new Date(form.get("startDate") as string).toISOString()
+        ? toIsoInBayArea(form.get("startDate") as string)
         : null,
       endDate: form.get("endDate")
-        ? new Date(form.get("endDate") as string).toISOString()
+        ? toIsoInBayArea(form.get("endDate") as string)
         : null,
       eventType: (form.get("eventType") as ExtractedEvent["eventType"]) || null,
       region: (form.get("region") as ExtractedEvent["region"]) || null,

@@ -5,6 +5,7 @@ import { ImportUrlInput } from "@/components/admin/import-url-input";
 import { ImportJobList } from "@/components/admin/import-job-list";
 import { ImportEventTable } from "@/components/admin/import-event-table";
 import { normalizeUrl } from "@/lib/utils/normalize-url";
+import { dateKeyInBayArea } from "@/lib/utils/timezone";
 import type {
   UrlJob,
   WorkbenchEvent,
@@ -17,13 +18,7 @@ import type {
 const MAX_CONCURRENT = 3;
 
 function dateKeyFromInput(value: string | number | null | undefined): string | null {
-  if (value === null || value === undefined) return null;
-  if (typeof value === "string") {
-    return value.split("T")[0] || null;
-  }
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString().split("T")[0];
+  return dateKeyInBayArea(value);
 }
 
 export default function ImportWorkbench() {
