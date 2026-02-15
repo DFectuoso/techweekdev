@@ -257,12 +257,13 @@ export function YearGrid({
                       {previewMode ? `Featured event #${seg.eventIndex + 1}` : seg.event.name}
                     </span>
                   ) : null;
-                  const canLink = !previewMode && !!seg.event.website;
+                  const website = seg.event.website ?? undefined;
+                  const canLink = !previewMode && !!website;
 
                   return canLink ? (
                     <a
                       key={`${seg.event.id}-${group.year}-${rowIndex}-${si}`}
-                      href={seg.event.website}
+                      href={website}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => { e.stopPropagation(); trackEventClick(seg.event.id, "year-grid"); }}

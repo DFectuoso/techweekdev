@@ -140,12 +140,13 @@ export function WeekGrid({
             {previewMode ? previewLabel : bar.event.name}
           </span>
         );
-        const canLink = !previewMode && !!bar.event.website;
+        const website = bar.event.website ?? undefined;
+        const canLink = !previewMode && !!website;
 
         return canLink ? (
           <a
             key={bar.event.id}
-            href={bar.event.website}
+            href={website}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => trackEventClick(bar.event.id, "week-grid")}
@@ -184,11 +185,12 @@ export function WeekGrid({
                   {previewMode ? previewLabel : bar.event.name}
                 </span>
               );
-              const canLink = !previewMode && !!bar.event.website;
+              const website = bar.event.website ?? undefined;
+              const canLink = !previewMode && !!website;
               return canLink ? (
                 <a
                   key={bar.event.id}
-                  href={bar.event.website}
+                  href={website}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => trackEventClick(bar.event.id, "week-grid")}
