@@ -261,6 +261,104 @@ function parseLumaCalendarPage(
   return results.length > 0 ? results : null;
 }
 
+function parseLumaJsonLdListing(html: string): ExtractedEvent[] | null {
+  const regex =
+    /<script\s+type="application\/ld\+json">([\s\S]*?)<\/script>/g;
+  let jsonLdMatch: RegExpExecArray | null;
+  const results: ExtractedEvent[] = [];
+
+  while ((jsonLdMatch = regex.exec(html)) !== null) {
+    let obj: unknown;
+    try {
+      obj = JSON.parse(jsonLdMatch[1]);
+    } catch {
+      continue;
+    }
+
+    const candidates = Array.isArray(obj) ? obj : [obj];
+    for (const candidate of candidates) {
+      const record = asRecord(candidate);
+      if (!record || !Array.isArray(record.events)) continue;
+
+      for (let i = 0; i < record.events.length; i++) {
+        const evt = asRecord(record.events[i]);
+        if (!evt || evt["@type"] !== "Event") continue;
+
+        const name = typeof evt.name === "string" ? evt.name : null;
+        const rawStart =
+          typeof evt.startDate === "string" ? evt.startDate : null;
+        if (!name || !rawStart) continue;
+
+        const normalizedStart = normalizeLumaDate(rawStart, BAY_AREA_TIMEZONE);
+        if (!normalizedStart) continue;
+
+        const normalizedEnd =
+          typeof evt.endDate === "string"
+            ? normalizeLumaDate(evt.endDate, BAY_AREA_TIMEZONE)
+            : null;
+
+        // Extract image — JSON-LD `image` can be an array of URLs
+        let imageUrl: string | null = null;
+        if (Array.isArray(evt.image) && typeof evt.image[0] === "string") {
+          imageUrl = evt.image[0];
+        } else {
+          imageUrl = resolveLumaImage(evt.image);
+        }
+
+        // Extract price from offers
+        let price: string | null = null;
+        if (Array.isArray(evt.offers)) {
+          const offer = asRecord(evt.offers[0]);
+          if (offer) {
+            const offerPrice = offer.price;
+            const currency = offer.priceCurrency;
+            if (
+              typeof offerPrice === "string" ||
+              typeof offerPrice === "number"
+            ) {
+              const numPrice = Number(offerPrice);
+              if (numPrice === 0) {
+                price = "Free";
+              } else if (typeof currency === "string") {
+                price = `${currency} ${offerPrice}`;
+              } else {
+                price = String(offerPrice);
+              }
+            }
+          }
+        }
+
+        // Build website URL from @id (e.g. "https://lu.ma/SLUG")
+        let website: string | null = null;
+        const id = evt["@id"];
+        if (typeof id === "string" && id.startsWith("http")) {
+          website = id;
+        } else if (typeof evt.url === "string" && evt.url.startsWith("http")) {
+          website = evt.url;
+        }
+
+        results.push({
+          _tempId: `luma-jsonld-${Date.now()}-${results.length}`,
+          name,
+          description:
+            typeof evt.description === "string" ? evt.description : null,
+          website,
+          imageUrl,
+          price,
+          startDate: normalizedStart,
+          endDate: normalizedEnd,
+          eventType: null,
+          region: null,
+          isFeatured: false,
+          _confidence: 0.9,
+        });
+      }
+    }
+  }
+
+  return results.length > 0 ? results : null;
+}
+
 function parseLumaEventPage(
   html: string,
   url: string
@@ -337,6 +435,12 @@ export async function fetchLumaEvents(
   const calendarEvents = parseLumaCalendarPage(nextData);
   if (calendarEvents) {
     return { events: calendarEvents, pageType: "listing" };
+  }
+
+  // Try JSON-LD listings (e.g. community/org pages with nested events)
+  const jsonLdEvents = parseLumaJsonLdListing(html);
+  if (jsonLdEvents) {
+    return { events: jsonLdEvents, pageType: "listing" };
   }
 
   // Neither worked — caller should fall back to generic scrape+AI
