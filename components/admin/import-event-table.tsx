@@ -72,7 +72,7 @@ function StatusBadge({ wEvent }: { wEvent: WorkbenchEvent }) {
     return (
       <Badge
         variant="secondary"
-        className="border-green-300 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-950 dark:text-green-200"
+        className="border-green-300 bg-green-50 text-green-800"
       >
         Imported
       </Badge>
@@ -84,7 +84,7 @@ function StatusBadge({ wEvent }: { wEvent: WorkbenchEvent }) {
     return (
       <Badge
         variant="secondary"
-        className="border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-950 dark:text-red-200"
+        className="border-red-300 bg-red-50 text-red-800"
       >
         Error
       </Badge>
@@ -94,7 +94,7 @@ function StatusBadge({ wEvent }: { wEvent: WorkbenchEvent }) {
     return (
       <Badge
         variant="secondary"
-        className="border-yellow-300 bg-yellow-50 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200"
+        className="border-yellow-300 bg-yellow-50 text-yellow-800"
       >
         Already Exists
       </Badge>
@@ -104,7 +104,7 @@ function StatusBadge({ wEvent }: { wEvent: WorkbenchEvent }) {
     return (
       <Badge
         variant="secondary"
-        className="border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-200"
+        className="border-blue-300 bg-blue-50 text-blue-800"
       >
         Existing URL (Cycle)
       </Badge>
@@ -114,7 +114,7 @@ function StatusBadge({ wEvent }: { wEvent: WorkbenchEvent }) {
     return (
       <Badge
         variant="secondary"
-        className="border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+        className="border-amber-300 bg-amber-50 text-amber-800"
       >
         Previously Rejected
       </Badge>
@@ -334,7 +334,7 @@ export function ImportEventTable({
                   )}
 
                   {wEvent.duplicateInfo && (
-                    <p className="mt-2 text-xs text-yellow-700 dark:text-yellow-300">
+                    <p className="mt-2 text-xs text-yellow-700">
                       {isExactDuplicate
                         ? `Exact duplicate found: ${wEvent.duplicateInfo.name}`
                         : `Same URL exists from another date: ${wEvent.duplicateInfo.name}`}

@@ -165,7 +165,7 @@ export function AnalyticsOverview() {
                           {evt.eventName}
                         </Link>
                         {evt.isFeatured && (
-                          <span className="ml-2 text-[10px] font-medium uppercase text-amber-600 dark:text-amber-400">Featured</span>
+                          <span className="ml-2 text-[10px] font-medium uppercase text-amber-600">Featured</span>
                         )}
                       </td>
                       <td className="px-4 py-2 text-right">{evt.clicks.toLocaleString()}</td>

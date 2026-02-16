@@ -221,7 +221,7 @@ export function WeekGrid({
                 {/* Day header */}
                 <div
                   className={`sticky top-0 z-10 flex items-baseline gap-2 border-t-2 px-3 py-2.5 ${
-                    isToday ? "bg-primary/10 border-t-primary" : "bg-emerald-50 border-t-emerald-500 dark:bg-emerald-950/30"
+                    isToday ? "bg-primary/10 border-t-primary" : "bg-emerald-50 border-t-emerald-500"
                   }`}
                 >
                   <span className="text-sm font-bold">

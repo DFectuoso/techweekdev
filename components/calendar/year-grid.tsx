@@ -205,7 +205,7 @@ export function YearGrid({
                           isToday
                             ? "bg-primary/15 ring-1 ring-primary/40"
                             : isWeekend
-                              ? "bg-black/[0.06] dark:bg-white/[0.06]"
+                              ? "bg-black/[0.06]"
                               : ""
                         } ${isPast && !isToday ? "opacity-10" : ""} ${isFirst ? "border-l-[3px] border-l-foreground/80" : ""}`}
                         style={{ flex: "1 1 0%", minWidth: 0, height: CELL_HEIGHT }}

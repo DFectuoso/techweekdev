@@ -119,8 +119,8 @@ export function ImportReviewSingle({
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         {duplicateWarning && (
-          <div className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm dark:border-yellow-700 dark:bg-yellow-950">
-            <p className="text-yellow-800 dark:text-yellow-200">
+          <div className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm">
+            <p className="text-yellow-800">
               An event with this URL already exists: <strong>{duplicateWarning.name}</strong>
             </p>
             <Button

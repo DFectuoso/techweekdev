@@ -302,7 +302,7 @@ export function ImportReviewList({
                     {dupeInfo ? (
                       <Badge
                         variant="secondary"
-                        className="border-yellow-300 bg-yellow-50 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-950 dark:text-yellow-200"
+                        className="border-yellow-300 bg-yellow-50 text-yellow-800"
                       >
                         Already exists
                       </Badge>

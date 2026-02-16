@@ -114,8 +114,8 @@ export function EventForm({ event }: EventFormProps) {
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {duplicateWarning && (
-        <div className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm dark:border-yellow-700 dark:bg-yellow-950">
-          <p className="text-yellow-800 dark:text-yellow-200">
+        <div className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm">
+          <p className="text-yellow-800">
             An event with this URL already exists: <strong>{duplicateWarning.name}</strong>
           </p>
           <Button
@@ -132,8 +132,8 @@ export function EventForm({ event }: EventFormProps) {
       )}
 
       {cycleMode && (
-        <div className="rounded-md border border-blue-300 bg-blue-50 p-3 text-sm dark:border-blue-700 dark:bg-blue-950">
-          <p className="text-blue-800 dark:text-blue-200">
+        <div className="rounded-md border border-blue-300 bg-blue-50 p-3 text-sm">
+          <p className="text-blue-800">
             Creating the next event in this cycle. Update the URL if needed before saving.
           </p>
         </div>

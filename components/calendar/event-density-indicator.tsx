@@ -7,17 +7,17 @@ export function EventDensityIndicator({ count }: EventDensityIndicatorProps) {
 
   const bg =
     count <= 2
-      ? "bg-gray-200/80 dark:bg-gray-700/80"
+      ? "bg-gray-200/80"
       : count <= 5
-        ? "bg-blue-100 dark:bg-blue-900/60"
-        : "bg-purple-100 dark:bg-purple-900/60";
+        ? "bg-blue-100"
+        : "bg-purple-100";
 
   const numColor =
     count <= 2
-      ? "text-gray-500 dark:text-gray-400"
+      ? "text-gray-500"
       : count <= 5
-        ? "text-blue-600 dark:text-blue-300"
-        : "text-purple-600 dark:text-purple-300";
+        ? "text-blue-600"
+        : "text-purple-600";
 
   const label = count === 1 ? "event" : "events";
 
