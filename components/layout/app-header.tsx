@@ -44,16 +44,35 @@ export function AppHeader() {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="hidden text-sm text-muted-foreground sm:block">
-            {session?.user?.name || session?.user?.email}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => signOut({ callbackUrl: "/" })}
-          >
-            Sign out
-          </Button>
+          {session?.user ? (
+            <>
+              <span className="hidden text-sm text-muted-foreground sm:block">
+                {session.user.name || session.user.email}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => signOut({ callbackUrl: "/" })}
+              >
+                Sign out
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/signup"
+                className="inline-flex h-8 items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Sign up
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

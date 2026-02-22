@@ -1,6 +1,13 @@
 "use client";
 
-import { useRef, useState, useEffect, useCallback, useMemo } from "react";
+import {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  type MouseEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import type { Event } from "@/lib/db/schema";
 import {
@@ -18,6 +25,7 @@ import {
   type BarSegment,
 } from "@/lib/utils/year-grid-layout";
 import { EventDensityIndicator } from "./event-density-indicator";
+import { LoginRequiredDialog } from "./login-required-dialog";
 import { trackEventClick } from "@/lib/utils/track";
 
 const CELL_WIDTH = 58;
@@ -34,6 +42,7 @@ interface YearGridProps {
   eventCountByDate: Record<string, number>;
   featuredEvents: Event[];
   previewMode?: boolean;
+  isLoggedIn?: boolean;
 }
 
 export function YearGrid({
@@ -41,12 +50,14 @@ export function YearGrid({
   eventCountByDate,
   featuredEvents,
   previewMode = false,
+  isLoggedIn = true,
 }: YearGridProps) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const todayRef = useRef<HTMLDivElement>(null);
   const [cellsPerRow, setCellsPerRow] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
 
   const parsedDates = useMemo(() => dates.map((d) => new Date(d)), [dates]);
   const today = useMemo(() => new Date(), []);
@@ -162,6 +173,19 @@ export function YearGrid({
     [previewMode, router]
   );
 
+  const handleFeaturedEventClick = useCallback(
+    (e: MouseEvent<HTMLAnchorElement>, eventId: string) => {
+      e.stopPropagation();
+      if (!isLoggedIn) {
+        e.preventDefault();
+        setShowLoginDialog(true);
+        return;
+      }
+      trackEventClick(eventId, "year-grid");
+    },
+    [isLoggedIn, setShowLoginDialog]
+  );
+
   if (cellsPerRow === 0) {
     // Render an invisible container so ResizeObserver can measure
     return <div ref={containerRef} className="w-full min-h-[100px]" />;
@@ -266,7 +290,7 @@ export function YearGrid({
                       href={website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => { e.stopPropagation(); trackEventClick(seg.event.id, "year-grid"); }}
+                      onClick={(e) => handleFeaturedEventClick(e, seg.event.id)}
                       className={`${barClass} hover:opacity-90 transition-opacity`}
                       style={barStyle}
                     >
@@ -287,6 +311,10 @@ export function YearGrid({
           })}
         </div>
       ))}
+      <LoginRequiredDialog
+        open={showLoginDialog}
+        onClose={() => setShowLoginDialog(false)}
+      />
     </div>
   );
 }

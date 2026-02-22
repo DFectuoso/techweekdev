@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useState, type MouseEvent } from "react";
 import type { Event } from "@/lib/db/schema";
 import {
   getDayName,
@@ -9,8 +10,9 @@ import {
   parseDateParam,
 } from "@/lib/utils/date";
 import { getFeaturedBarColor } from "@/lib/utils/event-colors";
-import { WeekEventCard } from "./week-event-card";
 import { trackEventClick } from "@/lib/utils/track";
+import { WeekEventCard } from "./week-event-card";
+import { LoginRequiredDialog } from "./login-required-dialog";
 
 interface WeekGridProps {
   weekStartParam: string;
@@ -18,6 +20,7 @@ interface WeekGridProps {
   featuredEvents: Event[];
   previewMode?: boolean;
   previewLabel?: string;
+  isLoggedIn?: boolean;
 }
 
 export function WeekGrid({
@@ -26,9 +29,11 @@ export function WeekGrid({
   featuredEvents,
   previewMode = false,
   previewLabel = "Members-only event",
+  isLoggedIn = true,
 }: WeekGridProps) {
   const weekStart = parseDateParam(weekStartParam);
   const today = new Date();
+  const [showLoginDialog, setShowLoginDialog] = useState(false);
 
   // Generate 7 days starting from weekStart
   const days = Array.from({ length: 7 }).map((_, i) => {
@@ -43,13 +48,11 @@ export function WeekGrid({
   for (const event of events) {
     const es = new Date(event.startDate);
     const ee = event.endDate ? new Date(event.endDate) : es;
-    // Normalize to midnight for day-level comparison
     const startDay = new Date(es.getFullYear(), es.getMonth(), es.getDate());
     const endDay = new Date(ee.getFullYear(), ee.getMonth(), ee.getDate());
-    // Clamp to visible week range
     const effectiveStart = startDay > days[0]! ? startDay : days[0]!;
     const effectiveEnd = endDay < weekEnd ? endDay : weekEnd;
-    // Add event to each day it covers within the week
+
     for (const day of days) {
       if (day >= effectiveStart && day <= effectiveEnd) {
         const key = day.toDateString();
@@ -59,7 +62,6 @@ export function WeekGrid({
     }
   }
 
-  // Sort each day's events by start time
   for (const key of Object.keys(eventsByDay)) {
     eventsByDay[key]!.sort(
       (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
@@ -67,26 +69,27 @@ export function WeekGrid({
   }
 
   // Compute featured bar spans
-  const featuredBars = featuredEvents.map((event, idx) => {
-    const es = new Date(event.startDate);
-    const ee = event.endDate ? new Date(event.endDate) : es;
-    // Normalize to midnight so time-of-day doesn't skew day-level comparisons
-    const startDay = new Date(es.getFullYear(), es.getMonth(), es.getDate());
-    const endDay = new Date(ee.getFullYear(), ee.getMonth(), ee.getDate());
+  const featuredBars = featuredEvents
+    .map((event, idx) => {
+      const es = new Date(event.startDate);
+      const ee = event.endDate ? new Date(event.endDate) : es;
+      const startDay = new Date(es.getFullYear(), es.getMonth(), es.getDate());
+      const endDay = new Date(ee.getFullYear(), ee.getMonth(), ee.getDate());
 
-    let startCol = -1;
-    let endCol = -1;
-    for (let i = 0; i < 7; i++) {
-      const day = days[i]!;
-      if (day >= startDay && day <= endDay) {
-        if (startCol === -1) startCol = i;
-        endCol = i;
+      let startCol = -1;
+      let endCol = -1;
+      for (let i = 0; i < 7; i++) {
+        const day = days[i]!;
+        if (day >= startDay && day <= endDay) {
+          if (startCol === -1) startCol = i;
+          endCol = i;
+        }
+        if (day > endDay) break;
       }
-      if (day > endDay) break;
-    }
 
-    return { event, idx, startCol, endCol };
-  }).filter((b) => b.startCol !== -1 && b.endCol !== -1);
+      return { event, idx, startCol, endCol };
+    })
+    .filter((b) => b.startCol !== -1 && b.endCol !== -1);
 
   // Simple lane assignment for featured bars
   const lanes: { end: number }[] = [];
@@ -113,12 +116,21 @@ export function WeekGrid({
       ? Math.min(lanes.length, 3) * (barHeight + barGap) + 8
       : 0;
 
+  const handleEventClick = useCallback(
+    (e: MouseEvent<HTMLAnchorElement>, eventId: string) => {
+      if (!isLoggedIn) {
+        e.preventDefault();
+        setShowLoginDialog(true);
+        return;
+      }
+      trackEventClick(eventId, "week-grid");
+    },
+    [isLoggedIn, setShowLoginDialog]
+  );
+
   // Shared featured bars renderer for desktop
   const featuredBarsDesktop = featuredBars.length > 0 && (
-    <div
-      className="relative mb-2"
-      style={{ height: `${featuredAreaHeight}px` }}
-    >
+    <div className="relative mb-2" style={{ height: `${featuredAreaHeight}px` }}>
       {featuredBars.map((bar) => {
         const lane = (bar as typeof bar & { lane: number }).lane;
         if (lane >= 3) return null;
@@ -136,7 +148,9 @@ export function WeekGrid({
           height: `${barHeight}px`,
         };
         const label = (
-          <span className={`whitespace-nowrap h-full flex items-center px-2 text-xs font-bold text-foreground/80 ${barColor} group-hover:pr-3`}>
+          <span
+            className={`whitespace-nowrap h-full flex items-center px-2 text-xs font-bold text-foreground/80 ${barColor} group-hover:pr-3`}
+          >
             {previewMode ? previewLabel : bar.event.name}
           </span>
         );
@@ -149,18 +163,14 @@ export function WeekGrid({
             href={website}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => trackEventClick(bar.event.id, "week-grid")}
+            onClick={(e) => handleEventClick(e, bar.event.id)}
             className={`${barClass} hover:opacity-90 transition-opacity`}
             style={barStyle}
           >
             {label}
           </a>
         ) : (
-          <div
-            key={bar.event.id}
-            className={barClass}
-            style={barStyle}
-          >
+          <div key={bar.event.id} className={barClass} style={barStyle}>
             {label}
           </div>
         );
@@ -175,13 +185,17 @@ export function WeekGrid({
         {/* Featured events */}
         {featuredBars.length > 0 && (
           <div className="mb-4 space-y-1.5 px-3">
-            <p className="text-xs font-bold uppercase tracking-wider text-foreground/70">Featured Events</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-foreground/70">
+              Featured Events
+            </p>
             {featuredBars.map((bar) => {
               const lane = (bar as typeof bar & { lane: number }).lane;
               if (lane >= 3) return null;
               const barColor = getFeaturedBarColor(bar.idx);
               const content = (
-                <span className={`block w-full rounded px-2.5 py-1.5 text-xs font-bold text-foreground/80 ${barColor}`}>
+                <span
+                  className={`block w-full rounded px-2.5 py-1.5 text-xs font-bold text-foreground/80 ${barColor}`}
+                >
                   {previewMode ? previewLabel : bar.event.name}
                 </span>
               );
@@ -193,7 +207,7 @@ export function WeekGrid({
                   href={website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={() => trackEventClick(bar.event.id, "week-grid")}
+                  onClick={(e) => handleEventClick(e, bar.event.id)}
                   className="block hover:opacity-90 transition-opacity"
                 >
                   {content}
@@ -214,19 +228,16 @@ export function WeekGrid({
             const isPast = isDateInPast(day);
 
             return (
-              <div
-                key={i}
-                className={isPast && !isToday ? "opacity-10" : ""}
-              >
+              <div key={i} className={isPast && !isToday ? "opacity-10" : ""}>
                 {/* Day header */}
                 <div
                   className={`sticky top-0 z-10 flex items-baseline gap-2 border-t-2 px-3 py-2.5 ${
-                    isToday ? "bg-primary/10 border-t-primary" : "bg-emerald-50 border-t-emerald-500"
+                    isToday
+                      ? "bg-primary/10 border-t-primary"
+                      : "bg-emerald-50 border-t-emerald-500"
                   }`}
                 >
-                  <span className="text-sm font-bold">
-                    {getDayName(day.getDay())}
-                  </span>
+                  <span className="text-sm font-bold">{getDayName(day.getDay())}</span>
                   <span
                     className={`text-sm ${
                       isToday
@@ -245,7 +256,13 @@ export function WeekGrid({
                 <div className="space-y-1.5 p-2">
                   {dayEvents.length > 0 ? (
                     dayEvents.map((event) => (
-                      <WeekEventCard key={event.id} event={event} previewMode={previewMode} />
+                      <WeekEventCard
+                        key={event.id}
+                        event={event}
+                        previewMode={previewMode}
+                        isLoggedIn={isLoggedIn}
+                        onRequireLogin={() => setShowLoginDialog(true)}
+                      />
                     ))
                   ) : (
                     <p className="py-2 text-center text-xs text-muted-foreground italic">
@@ -271,9 +288,7 @@ export function WeekGrid({
               return (
                 <div
                   key={i}
-                  className={`px-2 py-2 text-center ${
-                    isToday ? "bg-primary/10" : ""
-                  }`}
+                  className={`px-2 py-2 text-center ${isToday ? "bg-primary/10" : ""}`}
                 >
                   <p className="text-xs text-muted-foreground">
                     {getDayName(day.getDay())}
@@ -316,6 +331,8 @@ export function WeekGrid({
                         key={event.id}
                         event={event}
                         previewMode={previewMode}
+                        isLoggedIn={isLoggedIn}
+                        onRequireLogin={() => setShowLoginDialog(true)}
                       />
                     ))
                   ) : (
@@ -329,6 +346,11 @@ export function WeekGrid({
           </div>
         </div>
       </div>
+
+      <LoginRequiredDialog
+        open={showLoginDialog}
+        onClose={() => setShowLoginDialog(false)}
+      />
     </div>
   );
 }

@@ -61,10 +61,10 @@ export function CategoryFilter() {
     <div ref={containerRef} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+        className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-sm font-medium shadow-sm transition-colors ${
           isFiltering
-            ? "border-primary/40 bg-primary/10 text-foreground"
-            : "border-border text-muted-foreground hover:bg-accent"
+            ? "border-primary/35 bg-primary/10 text-foreground"
+            : "border-border/70 bg-card/75 text-muted-foreground hover:bg-accent"
         }`}
       >
         <svg
@@ -90,7 +90,7 @@ export function CategoryFilter() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-lg border border-border bg-card p-3 shadow-lg">
+        <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-border/80 bg-card/95 p-3 shadow-xl backdrop-blur">
           <div className="flex flex-wrap gap-2">
             {isFiltering && (
               <button

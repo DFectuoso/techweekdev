@@ -12,12 +12,11 @@ export function proxy(request: NextRequest) {
 
   // Protected routes
   const isProtected =
-    pathname.startsWith("/calendar") ||
     pathname.startsWith("/settings") ||
     pathname.startsWith("/admin");
 
   // Auth pages (login/signup) — redirect logged-in users to calendar
-  const isAuthPage = pathname === "/" || pathname === "/login" || pathname === "/signup";
+  const isAuthPage = pathname === "/login" || pathname === "/signup";
 
   if (isProtected && !isLoggedIn) {
     const loginUrl = new URL("/login", request.url);
@@ -34,8 +33,6 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/",
-    "/calendar/:path*",
     "/settings/:path*",
     "/admin/:path*",
     "/login",

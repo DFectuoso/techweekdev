@@ -8,9 +8,16 @@ import { BAY_AREA_TIMEZONE } from "@/lib/utils/timezone";
 interface WeekEventCardProps {
   event: Event;
   previewMode?: boolean;
+  isLoggedIn?: boolean;
+  onRequireLogin?: () => void;
 }
 
-export function WeekEventCard({ event, previewMode = false }: WeekEventCardProps) {
+export function WeekEventCard({
+  event,
+  previewMode = false,
+  isLoggedIn = true,
+  onRequireLogin,
+}: WeekEventCardProps) {
   const start = new Date(event.startDate);
   const timeStr = new Intl.DateTimeFormat("en-US", {
     timeZone: BAY_AREA_TIMEZONE,
@@ -67,7 +74,14 @@ export function WeekEventCard({ event, previewMode = false }: WeekEventCardProps
         href={event.website}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={() => trackEventClick(event.id, "week-card")}
+        onClick={(e) => {
+          if (!isLoggedIn) {
+            e.preventDefault();
+            onRequireLogin?.();
+            return;
+          }
+          trackEventClick(event.id, "week-card");
+        }}
         className={className}
       >
         {content}

@@ -13,10 +13,13 @@ import {
 } from "@/lib/utils/date";
 import { parseEventTypeFilter } from "@/lib/utils/filters";
 import { auth } from "@/lib/auth";
+import { getUserNewsletterStatus } from "@/lib/queries/users";
 import { WeekGrid } from "@/components/calendar/week-grid";
 import { SuggestEventForm } from "@/components/calendar/suggest-event-form";
 import { CalendarNav } from "@/components/calendar/calendar-nav";
 import { CategoryFilter } from "@/components/calendar/category-filter";
+import { NewsletterBanner } from "@/components/calendar/newsletter-banner";
+import { CalendarContextNote } from "@/components/calendar/calendar-context-note";
 
 interface Props {
   params: Promise<{ weekStart: string }>;
@@ -40,13 +43,16 @@ export default async function WeekPage({ params, searchParams }: Props) {
   const weekEnd = getWeekEnd(weekStart);
   const session = await auth();
 
-  const [events, featuredEvents] = await Promise.all([
+  const [events, featuredEvents, newsletterOptIn] = await Promise.all([
     getEventsBetweenFiltered(
       weekStart,
       weekEnd,
       eventTypes.length > 0 ? eventTypes : undefined
     ),
     getFeaturedEvents(weekStart, weekEnd),
+    session?.user?.id
+      ? getUserNewsletterStatus(session.user.id).catch(() => false)
+      : Promise.resolve(false),
   ]);
 
   const filteredFeatured = featuredEvents.filter((e) => {
@@ -62,6 +68,8 @@ export default async function WeekPage({ params, searchParams }: Props) {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-6">
+      <CalendarContextNote isLoggedIn={!!session} />
+
       <CalendarNav
         breadcrumbs={[
           { label: "Calendar", href: "/calendar" },
@@ -75,22 +83,35 @@ export default async function WeekPage({ params, searchParams }: Props) {
         nextLabel="Next week"
       />
 
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl sm:text-2xl font-bold">
-          <span className="hidden sm:inline">Week of </span>
-          {getShortMonthName(weekStart.getMonth())} {weekStart.getDate()}{" "}
-          &ndash; {getShortMonthName(weekEnd.getMonth())} {weekEnd.getDate()},{" "}
-          {weekEnd.getFullYear()}
-        </h1>
-        <Suspense>
-          <CategoryFilter />
-        </Suspense>
+      <div className="relative mb-4 flex items-end justify-center">
+        <div className="text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            TechWeek Weekly View
+          </p>
+          <h1 className="text-xl font-black tracking-tight sm:text-3xl">
+            <span className="hidden sm:inline">Week of </span>
+            {getShortMonthName(weekStart.getMonth())} {weekStart.getDate()}{" "}
+            &ndash; {getShortMonthName(weekEnd.getMonth())} {weekEnd.getDate()},{" "}
+            {weekEnd.getFullYear()}
+          </h1>
+        </div>
+        <div className="absolute right-0 top-1/2 -translate-y-1/2">
+          <Suspense>
+            <CategoryFilter />
+          </Suspense>
+        </div>
       </div>
+
+      <NewsletterBanner
+        isLoggedIn={!!session}
+        newsletterOptIn={newsletterOptIn}
+      />
 
       <WeekGrid
         weekStartParam={weekParam}
         events={events}
         featuredEvents={filteredFeatured}
+        isLoggedIn={!!session}
       />
       <SuggestEventForm isLoggedIn={!!session} />
     </div>

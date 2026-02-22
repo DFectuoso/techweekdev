@@ -17,12 +17,11 @@ export default {
 
       // Protected routes
       const isProtected =
-        path.startsWith("/calendar") ||
         path.startsWith("/settings") ||
         path.startsWith("/admin");
 
       // Auth / landing pages — redirect logged-in users to calendar
-      const isAuthPage = path === "/" || path === "/login" || path === "/signup";
+      const isAuthPage = path === "/login" || path === "/signup";
 
       if (isProtected && !isLoggedIn) {
         return false; // redirects to signIn page
