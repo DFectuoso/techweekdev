@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { events } from "@/lib/db/schema";
-import { eq, and, ne } from "drizzle-orm";
-import { normalizeUrl } from "@/lib/utils/normalize-url";
+import { eq, and, ne, inArray } from "drizzle-orm";
+import { normalizeUrlCandidates } from "@/lib/utils/normalize-url";
 import type { Event } from "@/lib/db/schema";
 
 export async function findDuplicate({
@@ -11,10 +11,14 @@ export async function findDuplicate({
   website: string | null | undefined;
   excludeId?: string;
 }): Promise<Event | null> {
-  const normalized = normalizeUrl(website);
-  if (!normalized) return null;
+  const candidates = normalizeUrlCandidates(website);
+  if (candidates.length === 0) return null;
 
-  const conditions = [eq(events.normalizedWebsite, normalized)];
+  const urlCondition =
+    candidates.length === 1
+      ? eq(events.normalizedWebsite, candidates[0]!)
+      : inArray(events.normalizedWebsite, candidates);
+  const conditions = [urlCondition];
   if (excludeId) {
     conditions.push(ne(events.id, excludeId));
   }

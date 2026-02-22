@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { findDuplicate } from "@/lib/queries/duplicates";
 import { findRejectedUrls } from "@/lib/queries/rejected-imports";
+import { normalizeUrlCandidates } from "@/lib/utils/normalize-url";
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -27,8 +28,6 @@ export async function POST(request: Request) {
     .filter((w): w is string => !!w);
   const rejectedMap = await findRejectedUrls(allUrls);
 
-  const { normalizeUrl } = await import("@/lib/utils/normalize-url");
-
   const results = await Promise.all(
     events.map(async (evt, index) => {
       if (!evt.website) {
@@ -36,8 +35,9 @@ export async function POST(request: Request) {
       }
 
       const existing = await findDuplicate({ website: evt.website });
-      const normalized = normalizeUrl(evt.website);
-      const rejection = normalized ? rejectedMap.get(normalized) : null;
+      const rejection = normalizeUrlCandidates(evt.website)
+        .map((candidate) => rejectedMap.get(candidate))
+        .find((value) => !!value) ?? null;
 
       return {
         index,

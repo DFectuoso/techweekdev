@@ -1,12 +1,14 @@
 import { db } from "@/lib/db";
 import { rejectedImportUrls } from "@/lib/db/schema";
 import { inArray, eq } from "drizzle-orm";
-import { normalizeUrl } from "@/lib/utils/normalize-url";
+import { normalizeUrl, normalizeUrlCandidates } from "@/lib/utils/normalize-url";
 
 export async function findRejectedUrls(urls: string[]) {
-  const normalized = urls
-    .map((u) => normalizeUrl(u))
-    .filter((n): n is string => n !== null);
+  const normalized = Array.from(
+    new Set(
+      urls.flatMap((u) => normalizeUrlCandidates(u))
+    )
+  );
 
   if (normalized.length === 0) return new Map<string, { id: string; eventName: string | null; rejectedAt: Date }>();
 
