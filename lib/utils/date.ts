@@ -1,4 +1,4 @@
-import { BAY_AREA_TIMEZONE } from "@/lib/utils/timezone";
+import { BAY_AREA_TIMEZONE, parseDateTimeInBayArea } from "@/lib/utils/timezone";
 
 const MONTH_NAMES = [
   "January",
@@ -32,7 +32,7 @@ const SHORT_MONTH_NAMES = [
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function getBayAreaDateParts(date: Date): {
+export function getBayAreaDateParts(date: Date): {
   year: number;
   month: number;
   day: number;
@@ -93,6 +93,36 @@ export function getWeekEnd(date: Date): Date {
   end.setDate(end.getDate() + 6);
   end.setHours(23, 59, 59, 999);
   return end;
+}
+
+/**
+ * Week range (Mon 00:00 PT – Sun 23:59:59.999 PT) for the week *after* the
+ * Bay Area week containing `now`. Returns real UTC instants, anchored to
+ * Bay Area midnight, so the math is timezone-correct on UTC servers.
+ */
+export function getNextWeekRangeBayArea(
+  now: Date = new Date()
+): { weekStart: Date; weekEnd: Date } {
+  const today = getBayAreaDateParts(now);
+  const todayLocal = new Date(today.year, today.month - 1, today.day);
+  const dow = todayLocal.getDay();
+  const daysToNextMon = dow === 0 ? 1 : 8 - dow;
+
+  const monLocal = new Date(todayLocal);
+  monLocal.setDate(todayLocal.getDate() + daysToNextMon);
+  const sunLocal = new Date(monLocal);
+  sunLocal.setDate(monLocal.getDate() + 6);
+
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
+
+  const weekStart = parseDateTimeInBayArea(`${fmt(monLocal)}T00:00:00`)!;
+  const weekEnd = new Date(
+    parseDateTimeInBayArea(`${fmt(sunLocal)}T23:59:59`)!.getTime() + 999
+  );
+  return { weekStart, weekEnd };
 }
 
 /** Get all days in a month, padded so it starts on Monday */

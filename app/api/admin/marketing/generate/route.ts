@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getWeekStart, getWeekEnd, formatDateRange } from "@/lib/utils/date";
+import { getNextWeekRangeBayArea, formatDateRange } from "@/lib/utils/date";
 import { getEventsBetween } from "@/lib/queries/events";
 import { generateMarketingSummary } from "@/lib/ai/generate-marketing-summary";
 
@@ -10,10 +10,7 @@ export async function POST() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const nextWeek = new Date();
-  nextWeek.setDate(nextWeek.getDate() + 7);
-  const weekStart = getWeekStart(nextWeek);
-  const weekEnd = getWeekEnd(nextWeek);
+  const { weekStart, weekEnd } = getNextWeekRangeBayArea();
   const weekLabel = formatDateRange(weekStart, weekEnd);
 
   const events = await getEventsBetween(weekStart, weekEnd);
