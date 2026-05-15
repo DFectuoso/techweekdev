@@ -47,7 +47,7 @@ export function WeekEventCard({
 
   const content = (
     <>
-      <h4 className={`text-sm line-clamp-2 ${event.isFeatured ? "font-bold" : "font-semibold"}`}>{event.name}</h4>
+      <h4 className={`text-sm ${event.isFeatured ? "font-bold" : "font-semibold"}`}>{event.name}</h4>
       <p className="mt-0.5 text-xs text-muted-foreground">{timeStr}</p>
       <div className="mt-1.5 flex items-center gap-1.5">
         {event.eventType && (
