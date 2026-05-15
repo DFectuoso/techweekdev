@@ -3,9 +3,10 @@ import { auth } from "@/lib/auth";
 import { getWeekStart, getWeekEnd, formatDateRange } from "@/lib/utils/date";
 import { getEventsBetween, getFeaturedEvents } from "@/lib/queries/events";
 import { generateNewsletterIntro } from "@/lib/ai/generate-newsletter-intro";
-import { getResendClient } from "@/lib/email/resend";
+import { getZavuClient, getZavuSenderId } from "@/lib/email/zavu";
 import { buildUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { WeeklyNewsletter } from "@/lib/email/weekly-newsletter";
+import { render } from "@react-email/render";
 
 export async function POST() {
   const session = await auth();
@@ -32,40 +33,42 @@ export async function POST() {
     weekLabel
   );
 
-  const resend = getResendClient();
-  const fromEmail =
-    process.env.NEWSLETTER_FROM_EMAIL || "TechWeek <newsletter@techweek.dev>";
+  const zavu = getZavuClient();
+  const senderId = getZavuSenderId();
   const appUrl = process.env.APP_URL || "https://techweek.dev";
   const unsubscribeUrl = buildUnsubscribeUrl(session.user.id, appUrl);
+  const subject = `[TEST] TechWeek: ${weekLabel}`;
+  const email = WeeklyNewsletter({
+    aiIntro,
+    weekEvents,
+    featuredEvents,
+    unsubscribeUrl,
+    weekLabel,
+  });
+  const [htmlBody, text] = await Promise.all([
+    render(email),
+    render(email, { plainText: true }),
+  ]);
 
   try {
-    const result = await resend.emails.send({
-      from: fromEmail,
+    const result = await zavu.messages.send({
       to: session.user.email,
-      subject: `[TEST] TechWeek: ${weekLabel}`,
-      react: WeeklyNewsletter({
-        aiIntro,
-        weekEvents,
-        featuredEvents,
-        unsubscribeUrl,
+      channel: "email",
+      subject,
+      htmlBody,
+      text,
+      metadata: {
+        kind: "newsletter_test",
         weekLabel,
-      }),
-      headers: {
-        "List-Unsubscribe": `<${unsubscribeUrl}>`,
-        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
       },
+      ...(senderId ? { "Zavu-Sender": senderId } : {}),
     });
-
-    if (result.error) {
-      return NextResponse.json(
-        { error: result.error.message },
-        { status: 500 }
-      );
-    }
 
     return NextResponse.json({
       success: true,
       sentTo: session.user.email,
+      messageId: result.message.id,
+      status: result.message.status,
       weekEvents: weekEvents.length,
       featuredEvents: featuredEvents.length,
     });

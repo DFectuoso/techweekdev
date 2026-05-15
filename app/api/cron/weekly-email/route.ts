@@ -3,11 +3,13 @@ import { getWeekStart, getWeekEnd, formatDateRange } from "@/lib/utils/date";
 import { getEventsBetween, getFeaturedEvents } from "@/lib/queries/events";
 import { getNewsletterSubscribers } from "@/lib/queries/users";
 import { generateNewsletterIntro } from "@/lib/ai/generate-newsletter-intro";
-import { getResendClient } from "@/lib/email/resend";
+import { getZavuClient, getZavuSenderId } from "@/lib/email/zavu";
 import { buildUnsubscribeUrl } from "@/lib/email/unsubscribe";
 import { WeeklyNewsletter } from "@/lib/email/weekly-newsletter";
+import { render } from "@react-email/render";
 
 export const maxDuration = 60;
+const CONTACT_BATCH_SIZE = 1000;
 
 export async function GET(request: NextRequest) {
   // Verify cron secret
@@ -33,7 +35,12 @@ export async function GET(request: NextRequest) {
   ]);
 
   if (subscribers.length === 0) {
-    return NextResponse.json({ sent: 0, failed: 0, reason: "no subscribers" });
+    return NextResponse.json({
+      submitted: false,
+      subscribers: 0,
+      contacts: { added: 0, duplicates: 0, invalid: 0 },
+      reason: "no subscribers",
+    });
   }
 
   // Generate AI intro (graceful degradation)
@@ -43,51 +50,107 @@ export async function GET(request: NextRequest) {
     weekLabel
   );
 
-  // Send emails via Resend batch API in chunks of 100
-  const resend = getResendClient();
-  const fromEmail = process.env.NEWSLETTER_FROM_EMAIL || "TechWeek <newsletter@techweek.dev>";
+  const zavu = getZavuClient();
+  const senderId = getZavuSenderId();
   const appUrl = process.env.APP_URL || "https://techweek.dev";
-  const BATCH_SIZE = 100;
+  const subject = `TechWeek: ${weekLabel}`;
+  const email = WeeklyNewsletter({
+    aiIntro,
+    weekEvents,
+    featuredEvents,
+    unsubscribeUrl: "{{unsubscribeUrl}}",
+    weekLabel,
+  });
+  const [emailHtmlBody, text] = await Promise.all([
+    render(email),
+    render(email, { plainText: true }),
+  ]);
 
-  let sent = 0;
-  let failed = 0;
+  const broadcastResult = await zavu.broadcasts.create({
+    name: `TechWeek newsletter - ${weekLabel}`,
+    channel: "email",
+    emailSubject: subject,
+    emailHtmlBody,
+    text,
+    idempotencyKey: `weekly-newsletter:${weekStart.toISOString().slice(0, 10)}`,
+    metadata: {
+      kind: "weekly_newsletter",
+      weekStart: weekStart.toISOString(),
+      weekEnd: weekEnd.toISOString(),
+      weekLabel,
+    },
+    ...(senderId ? { senderId } : {}),
+  });
 
-  for (let i = 0; i < subscribers.length; i += BATCH_SIZE) {
-    const batch = subscribers.slice(i, i + BATCH_SIZE);
+  const broadcastId = broadcastResult.broadcast.id;
+  let added = 0;
+  let duplicates = 0;
+  let invalid = 0;
 
-    const emails = batch.map((subscriber) => {
-      const unsubscribeUrl = buildUnsubscribeUrl(subscriber.id, appUrl);
-      return {
-        from: fromEmail,
-        to: subscriber.email,
-        subject: `TechWeek: ${weekLabel}`,
-        react: WeeklyNewsletter({
-          aiIntro,
-          weekEvents,
-          featuredEvents,
-          unsubscribeUrl,
-          weekLabel,
-        }),
-        headers: {
-          "List-Unsubscribe": `<${unsubscribeUrl}>`,
-          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-        },
-      };
-    });
+  for (let i = 0; i < subscribers.length; i += CONTACT_BATCH_SIZE) {
+    const batch = subscribers.slice(i, i + CONTACT_BATCH_SIZE);
 
     try {
-      const result = await resend.batch.send(emails);
-      if (result.error) {
-        console.error("Batch send error:", result.error);
-        failed += batch.length;
-      } else {
-        sent += batch.length;
+      const result = await zavu.broadcasts.contacts.add(broadcastId, {
+        contacts: batch.map((subscriber) => ({
+          recipient: subscriber.email,
+          templateVariables: {
+            name: subscriber.name || "",
+            unsubscribeUrl: buildUnsubscribeUrl(subscriber.id, appUrl),
+          },
+        })),
+      });
+
+      added += result.added;
+      duplicates += result.duplicates;
+      invalid += result.invalid;
+
+      if (result.errors?.length) {
+        console.error("Broadcast contact add errors:", {
+          broadcastId,
+          errors: result.errors,
+        });
       }
     } catch (err) {
-      console.error("Batch send exception:", err);
-      failed += batch.length;
+      console.error("Broadcast contact add exception:", {
+        broadcastId,
+        error: err,
+      });
+      invalid += batch.length;
     }
   }
 
-  return NextResponse.json({ sent, failed, subscribers: subscribers.length });
+  const hasContacts =
+    added > 0 || duplicates > 0 || broadcastResult.broadcast.totalContacts > 0;
+
+  if (!hasContacts) {
+    return NextResponse.json({
+      broadcastId,
+      submitted: false,
+      subscribers: subscribers.length,
+      contacts: { added, duplicates, invalid },
+      reason: "no contacts added",
+    });
+  }
+
+  if (broadcastResult.broadcast.status !== "draft") {
+    return NextResponse.json({
+      broadcastId,
+      submitted: true,
+      status: broadcastResult.broadcast.status,
+      subscribers: subscribers.length,
+      contacts: { added, duplicates, invalid },
+      reason: "broadcast already submitted",
+    });
+  }
+
+  const sendResult = await zavu.broadcasts.send(broadcastId);
+
+  return NextResponse.json({
+    broadcastId,
+    submitted: true,
+    status: sendResult.broadcast.status,
+    subscribers: subscribers.length,
+    contacts: { added, duplicates, invalid },
+  });
 }
