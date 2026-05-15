@@ -36,39 +36,67 @@ export async function POST() {
   const zavu = getZavuClient();
   const senderId = getZavuSenderId();
   const appUrl = process.env.APP_URL || "https://techweek.dev";
-  const unsubscribeUrl = buildUnsubscribeUrl(session.user.id, appUrl);
   const subject = `[TEST] TechWeek: ${weekLabel}`;
   const email = WeeklyNewsletter({
     aiIntro,
     weekEvents,
     featuredEvents,
-    unsubscribeUrl,
+    unsubscribeUrl: "{{unsubscribeUrl}}",
     weekLabel,
   });
-  const [htmlBody, text] = await Promise.all([
+  const [emailHtmlBody, text] = await Promise.all([
     render(email),
     render(email, { plainText: true }),
   ]);
 
   try {
-    const result = await zavu.messages.send({
-      to: session.user.email,
+    const broadcastResult = await zavu.broadcasts.create({
+      name: `[TEST] TechWeek newsletter - ${weekLabel}`,
       channel: "email",
-      subject,
-      htmlBody,
+      emailSubject: subject,
+      emailHtmlBody,
       text,
+      idempotencyKey: `weekly-newsletter-test:${session.user.id}:${Date.now()}`,
       metadata: {
         kind: "newsletter_test",
+        weekStart: weekStart.toISOString(),
+        weekEnd: weekEnd.toISOString(),
         weekLabel,
       },
-      ...(senderId ? { "Zavu-Sender": senderId } : {}),
+      ...(senderId ? { senderId } : {}),
     });
+
+    const broadcastId = broadcastResult.broadcast.id;
+
+    const addResult = await zavu.broadcasts.contacts.add(broadcastId, {
+      contacts: [
+        {
+          recipient: session.user.email,
+          templateVariables: {
+            name: session.user.name || "",
+            unsubscribeUrl: buildUnsubscribeUrl(session.user.id, appUrl),
+          },
+        },
+      ],
+    });
+
+    if (addResult.added === 0 && addResult.duplicates === 0) {
+      return NextResponse.json(
+        {
+          error: "Failed to add admin as broadcast contact",
+          details: addResult.errors,
+        },
+        { status: 500 }
+      );
+    }
+
+    const sendResult = await zavu.broadcasts.send(broadcastId);
 
     return NextResponse.json({
       success: true,
       sentTo: session.user.email,
-      messageId: result.message.id,
-      status: result.message.status,
+      broadcastId,
+      status: sendResult.broadcast.status,
       weekEvents: weekEvents.length,
       featuredEvents: featuredEvents.length,
     });
