@@ -16,5 +16,5 @@ export function getZavuClient(): Zavudev {
 }
 
 export function getZavuSenderId(): string | undefined {
-  return process.env.ZAVU_SENDER_ID || undefined;
+  return process.env.ZAVU_EMAIL_SENDER_ID || undefined;
 }
